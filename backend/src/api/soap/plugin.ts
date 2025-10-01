@@ -3,9 +3,13 @@ import { getWsdlContent } from './service.js';
 
 const soapPlugin: FastifyPluginAsync = async (fastify) => {
   // Add content type parser for XML
-  fastify.addContentTypeParser('text/xml', { parseAs: 'string' }, async (_req, body) => {
-    return body;
-  });
+  fastify.addContentTypeParser(
+    'text/xml',
+    { parseAs: 'string' },
+    async (_req: unknown, body: unknown) => {
+      return body;
+    }
+  );
 
   // Serve WSDL
   fastify.get('/soap', async (request, reply) => {
