@@ -5,12 +5,14 @@
 **Prerequisites**: plan.md ✅, research.md ✅, data-model.md ✅, contracts/ ✅, quickstart.md ✅
 
 ## Tech Stack Summary
-- **Language**: Node.js 24 (TypeScript, ES modules)
-- **REST**: Fastify v4.x
+- **Language**: Node.js 24 with TypeScript 5.x (strict mode)
+- **Module System**: ES modules (`"type": "module"` in package.json) - FR-120
+- **Modern JavaScript**: Top-level await, optional chaining, nullish coalescing, native fetch - FR-122
+- **REST**: Fastify v4.x (TypeScript support)
 - **SOAP**: strong-soap v1.x
 - **Git**: isomorphic-git v1.x
 - **AI**: openai v4.x, @anthropic-ai/sdk v0.x
-- **Testing**: Vitest v1.x
+- **Testing**: Vitest v1.x (`.test.ts` files) - FR-121
 - **Project Type**: Web (backend + frontend)
 
 ## Repository Structure
@@ -39,14 +41,15 @@
 - [ ] **T001** Create backend project structure
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/`
   - Create directories: `src/lib/`, `src/api/soap/`, `src/api/rest/`, `src/cli/`, `src/models/`, `tests/contract/`, `tests/integration/`, `tests/unit/`
-  - Create `package.json` with Node.js 24 engine requirement
+  - Create `package.json` with Node.js 24 engine requirement and `"type": "module"` for ES modules (FR-120)
   - Dependencies: None
 
 - [ ] **T002** Initialize backend dependencies
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/package.json`
   - Install: `fastify`, `@fastify/sse`, `@fastify/websocket`, `strong-soap`, `isomorphic-git`, `openai`, `@anthropic-ai/sdk`, `pino` (logging), `ajv` (validation), `lru-cache`, `dotenv`
-  - Install dev: `vitest`, `@vitest/ui`, `supertest`, `@types/node`, `typescript`
-  - Configure `tsconfig.json` for Node.js 24 ES modules
+  - Install dev: `vitest`, `@vitest/ui`, `supertest`, `@types/node`, `typescript`, `tsx` (TypeScript execution)
+  - Configure `tsconfig.json` for strict TypeScript with ES2022 target, ES modules, and strict mode (FR-101, FR-120)
+  - Add build scripts: `"build": "tsc"`, `"dev": "tsx watch src/index.ts"`
   - Dependencies: T001
 
 - [ ] **T003** [P] Configure linting and formatting
@@ -61,6 +64,11 @@
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 
 **CRITICAL**: These tests MUST be written and MUST FAIL before ANY implementation begins (Constitutional Principle III)
+
+**Testing Framework**: Vitest with TypeScript (`.test.ts` files) - FR-121
+- Use `import { describe, it, expect } from 'vitest'` (ES modules)
+- Use `async`/`await` for all async tests (no `.then()` chains)
+- Use modern JavaScript features (optional chaining, nullish coalescing)
 
 ### Contract Tests (5 tasks, all parallel)
 
@@ -431,31 +439,71 @@
   - Full conversation metadata and messages
   - Dependencies: T045, T024
 
+### File Attachment Endpoints
+
+- [ ] **T055** REST: POST /v1/chat/:chatId/files (upload file)
+  - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/rest/files.ts`
+  - Handle multipart/form-data upload
+  - Validate: file size (max 10MB), allowed types (images, PDFs, text, JSON, CSV)
+  - Store in files/ subdirectory, calculate SHA-256 hash
+  - Create Git commit with message "Add file: {filename}"
+  - Update .soapy-metadata.json with file metadata
+  - Return FileUploadResponse with commitHash + metadata
+  - Dependencies: T024 (git-storage), T045 (Fastify server)
+
+- [ ] **T056** REST: GET /v1/chat/:chatId/files (list files)
+  - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/rest/files.ts`
+  - Read .soapy-metadata.json attachments array
+  - Return array of FileMetadata objects
+  - Dependencies: T024
+
+- [ ] **T057** REST: GET /v1/chat/:chatId/files/:filename (download file)
+  - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/rest/files.ts`
+  - Stream file from files/ subdirectory
+  - Set appropriate Content-Type header
+  - Return 404 if file not found
+  - Dependencies: T024
+
+- [ ] **T058** SOAP: CommitFile operation
+  - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/soap/operations.ts`
+  - Accept Base64-encoded file data
+  - Decode and store in files/ subdirectory
+  - Same validation as REST upload (FR-116)
+  - Return CommitFileResponse with commitHash + FileMetadata
+  - Dependencies: T043 (SOAP server), T024 (git-storage)
+
+- [ ] **T059** SOAP: GetFile operation
+  - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/soap/operations.ts`
+  - Retrieve file from files/ subdirectory
+  - Encode as Base64 for SOAP response
+  - Return GetFileResponse with Base64 data + FileMetadata
+  - Dependencies: T043, T024
+
 ---
 
 ## Phase 3.5: CLI Tools (Constitutional Principle II)
 
 **CRITICAL**: Each library MUST have a CLI tool with text I/O
 
-- [ ] **T055** [P] CLI: soapy-git
+- [ ] **T085** [P] CLI: soapy-git
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/cli/soapy-git.ts`
   - Commands: create-conversation, get-messages, create-branch, list-conversations
   - Support --json flag for structured output
   - Dependencies: T024-T028
 
-- [ ] **T056** [P] CLI: soapy-convert
+- [ ] **T081** [P] CLI: soapy-convert
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/cli/soapy-convert.ts`
   - Commands: openai-to-anthropic, git-to-soap, anthropic-to-openai
   - Accept JSON via stdin, output to stdout
   - Dependencies: T033
 
-- [ ] **T057** [P] CLI: soapy-ai
+- [ ] **T082** [P] CLI: soapy-ai
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/cli/soapy-ai.ts`
   - Commands: generate --provider --model --prompt, test-tool --tool-name --params
   - Support --stream flag for streaming output
   - Dependencies: T037
 
-- [ ] **T058** [P] CLI: soapy-auth
+- [ ] **T083** [P] CLI: soapy-auth
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/cli/soapy-auth.ts`
   - Commands: validate-key, check-org --user-id --conversation-id
   - Output: success/failure with JSON details
@@ -467,20 +515,20 @@
 
 ### Vite Project Setup
 
-- [ ] **T059** Create frontend Vite project
+- [ ] **T084** Create frontend Vite project
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/`
   - Initialize Vite with React + TypeScript
   - Install dependencies: axios, @tanstack/react-query, vite
   - Configure vite.config.ts
   - Dependencies: None (separate from backend)
 
-- [ ] **T060** Frontend: SOAP client service
+- [ ] **T085** Frontend: SOAP client service
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/services/soap-client.ts`
   - Implement SOAP request builder (XML generation)
   - Parse SOAP responses
   - Dependencies: T059
 
-- [ ] **T061** Frontend: REST client service
+- [ ] **T081** Frontend: REST client service
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/services/rest-client.ts`
   - Axios wrapper for REST API
   - Support all 9 endpoints
@@ -488,40 +536,40 @@
 
 ### Test Client Components (Constitutional Principle IV - Integration Testing Focus)
 
-- [ ] **T062** [P] Component: SOAPTester
+- [ ] **T082** [P] Component: SOAPTester
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/components/SOAPTester.tsx`
   - Form for submitting SOAP operations
   - Display WSDL
   - Test all 6 SOAP operations
   - Dependencies: T059, T060
 
-- [ ] **T063** [P] Component: RESSTester
+- [ ] **T083** [P] Component: RESSTester
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/components/RESSTester.tsx`
   - Test REST endpoints with different formats (openai, anthropic, soap)
   - Format switcher
   - Dependencies: T059, T061
 
-- [ ] **T064** [P] Component: StreamingTester
+- [ ] **T084** [P] Component: StreamingTester
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/components/StreamingTester.tsx`
   - SSE event display (real-time token streaming)
   - WebSocket connection tester
   - Dependencies: T059, T061
 
-- [ ] **T065** [P] Component: BranchingTester
+- [ ] **T085** [P] Component: BranchingTester
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/components/BranchingTester.tsx`
   - Visual branch tree
   - Create branch from message point
   - Navigate between branches
   - Dependencies: T059, T061
 
-- [ ] **T066** [P] Component: ToolTester
+- [ ] **T081** [P] Component: ToolTester
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/components/ToolTester.tsx`
   - Submit tool calls
   - Display tool results
   - Test retry logic visualization
   - Dependencies: T059, T061
 
-- [ ] **T067** Test Dashboard page
+- [ ] **T082** Test Dashboard page
   - Path: `/Users/johnhenry/Projects/soapy/soapy/frontend/src/pages/TestDashboard.tsx`
   - Aggregate all 5 test components
   - Tab navigation between testers
@@ -531,19 +579,19 @@
 
 ## Phase 3.7: Integration & Middleware
 
-- [ ] **T068** Auth middleware integration (REST + SOAP)
+- [ ] **T083** Auth middleware integration (REST + SOAP)
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/middleware/auth.ts`
   - Apply auth library to all endpoints
   - Return 403 for unauthorized access
   - Dependencies: T039, T045, T043
 
-- [ ] **T069** Request/response logging middleware
+- [ ] **T084** Request/response logging middleware
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/middleware/logging.ts`
   - JSON logging to stderr (pino library)
   - Log all SOAP and REST requests (FR-077)
   - Dependencies: T045, T043
 
-- [ ] **T070** Error handling and mapping
+- [ ] **T085** Error handling and mapping
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/middleware/error.ts`
   - SOAP Fault generation (FR-048)
   - OpenAI error format (FR-049)
@@ -551,7 +599,7 @@
   - SSE error events (FR-053)
   - Dependencies: T045, T043
 
-- [ ] **T071** CORS and security headers
+- [ ] **T081** CORS and security headers
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/src/api/middleware/cors.ts`
   - Configurable CORS via ALLOWED_ORIGINS env var (research.md)
   - Security headers (HTTPS optional per FR-078)
@@ -563,37 +611,37 @@
 
 ### Unit Tests (5 libraries)
 
-- [ ] **T072** [P] Unit tests: git-storage library
+- [ ] **T082** [P] Unit tests: git-storage library
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/unit/git-storage.test.ts`
   - Test CRUD operations, branching, caching
   - Mock isomorphic-git
   - Dependencies: T024-T029
 
-- [ ] **T073** [P] Unit tests: format-converter library
+- [ ] **T083** [P] Unit tests: format-converter library
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/unit/format-converter.test.ts`
   - Test OpenAI, Anthropic, SOAP conversions
   - Test round-trip conversion
   - Dependencies: T030-T033
 
-- [ ] **T074** [P] Unit tests: ai-providers library
+- [ ] **T084** [P] Unit tests: ai-providers library
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/unit/ai-providers.test.ts`
   - Test provider selection, retry logic
   - Mock OpenAI/Anthropic SDKs
   - Dependencies: T034-T037
 
-- [ ] **T075** [P] Unit tests: auth library
+- [ ] **T085** [P] Unit tests: auth library
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/unit/auth.test.ts`
   - Test API key validation, org access checks
   - Dependencies: T038-T039
 
-- [ ] **T076** [P] Unit tests: streaming library
+- [ ] **T081** [P] Unit tests: streaming library
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/unit/streaming.test.ts`
   - Test SSE/WebSocket lifecycle, disconnection handling
   - Dependencies: T040-T042
 
 ### Performance & Documentation
 
-- [ ] **T077** Performance benchmarking
+- [ ] **T082** Performance benchmarking
   - Path: `/Users/johnhenry/Projects/soapy/soapy/backend/tests/performance/latency.test.ts`
   - Test SOAP p95 <1500ms, REST p95 <800ms (research.md targets)
   - Use artillery or autocannon for load testing
@@ -601,20 +649,20 @@
   - **Failure Handling**: Performance test failures block Phase 3.8 completion and trigger optimization iteration
   - Dependencies: All API endpoints (T044-T054)
 
-- [ ] **T078** [P] Update quickstart.md validation
+- [ ] **T083** [P] Update quickstart.md validation
   - Path: `/Users/johnhenry/Projects/soapy/specs/002-create-a-comprehensive/quickstart.md`
   - Verify all 12 steps work with implemented system
   - Update any changed endpoints or commands
   - Dependencies: T044-T067
 
-- [ ] **T079** [P] Generate API documentation
+- [ ] **T084** [P] Generate API documentation
   - Path: `/Users/johnhenry/Projects/soapy/soapy/docs/api-reference.md`
   - Document all 6 SOAP operations
   - Document all 9 REST endpoints
   - Include curl examples from quickstart.md
   - Dependencies: T044-T054
 
-- [ ] **T080** Code cleanup and refactoring
+- [ ] **T085** Code cleanup and refactoring
   - Remove duplication across libraries
   - Ensure consistent error handling
   - Verify Constitutional Principle VII (Simplicity)

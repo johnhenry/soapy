@@ -351,7 +351,80 @@
 
 ---
 
-### Test Framework: Vitest
+### TypeScript Configuration (FR-101)
+
+**Decision**: Use TypeScript 5.x with strict mode enabled
+
+**Rationale**:
+- Type safety catches errors at compile time (reduces runtime bugs)
+- Enhanced IDE support (autocomplete, refactoring, inline documentation)
+- Better code maintainability for large codebase
+- First-class support in Node.js 24 ecosystem
+
+**TypeScript Configuration** (`tsconfig.json`):
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}
+```
+
+**Implementation Notes**:
+- Use `.ts` extension for all source files
+- Use `tsx` for Node.js execution during development
+- Build with `tsc` for production
+- All libraries have full TypeScript typings
+
+---
+
+### ES Modules & Modern JavaScript (FR-120, FR-122)
+
+**Decision**: Use ES modules exclusively with latest JavaScript features
+
+**Rationale**:
+- Node.js 24 has first-class ESM support
+- Tree-shaking benefits (smaller bundle sizes)
+- Aligns with modern JavaScript ecosystem
+- Top-level await available (simplifies async code)
+
+**Required package.json setting**:
+```json
+{
+  "type": "module"
+}
+```
+
+**Latest JavaScript Features to Use**:
+- **ES Modules**: `import`/`export` syntax (not `require`/`module.exports`)
+- **Top-level await**: Await promises at module top level
+- **Optional chaining**: `user?.profile?.email`
+- **Nullish coalescing**: `value ?? defaultValue`
+- **Native fetch API**: Built-in `fetch()` (Node.js 18+)
+- **Array methods**: `Array.prototype.at()`, `Array.prototype.findLast()`
+- **Object methods**: `Object.hasOwn()`, `Object.groupBy()`
+- **String methods**: `String.prototype.replaceAll()`
+- **Private class fields**: `#privateField`
+- **Async iterators**: `for await...of` loops
+
+**Forbidden Patterns**:
+- ❌ `require()` / `module.exports` (use `import`/`export`)
+- ❌ `var` declarations (use `const`/`let`)
+- ❌ `function` callbacks with `this` binding (use arrow functions)
+- ❌ `.then()` chains (use `async`/`await`)
+
+---
+
+### Test Framework: Vitest (FR-121)
 
 **Decision**: Use Vitest v1.x
 
@@ -360,16 +433,20 @@
 - Fast: Vite's HMR speeds up test iteration
 - Jest-compatible API (easy migration if needed)
 - ESM-first (matches Node.js 24 ES module focus)
+- TypeScript support out of the box
 
 **Alternatives Considered**:
 1. **Jest** - Rejected: Slower, ESM support still experimental, not Vite-native
 2. **Mocha + Chai** - Rejected: More boilerplate, separate assertion library
+3. **node:test** - Rejected: Less mature ecosystem, fewer assertion utilities
 
 **Implementation Notes**:
 - Install: `npm install -D vitest @vitest/ui`
-- Config: `vitest.config.ts` extends Vite config
+- Config: `vitest.config.ts` extends Vite config with TypeScript support
 - Contract tests: Use `supertest` for HTTP assertions
 - Integration tests: Spin up real server with test database
+- TypeScript: Tests written in `.test.ts` files
+- Assertions: Built-in `expect()` API (Jest-compatible)
 
 ---
 

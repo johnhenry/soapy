@@ -6,12 +6,16 @@
 
 ## Tech Stack
 
-**Language**: Node.js 24 (ES modules, TypeScript)
+**Language**: Node.js 24 with TypeScript 5.x
+- **Module System**: ES modules (`import`/`export`) - `package.json` has `"type": "module"`
+- **TypeScript**: Strict mode enabled, all source files use `.ts` extension
+- **Modern JavaScript**: Top-level await, optional chaining, nullish coalescing, native fetch, private fields
 
 **Backend Framework**: Fastify v4.x
 - Fast HTTP server (2-3x faster than Express)
 - Native JSON Schema validation
 - Plugins: `@fastify/sse` (Server-Sent Events), `@fastify/websocket`
+- Full TypeScript support
 
 **SOAP**: `strong-soap` v1.x
 - WSDL 1.1/2.0 support
@@ -27,9 +31,11 @@
 - `@anthropic-ai/sdk` v0.x (Anthropic official SDK)
 
 **Testing**: Vitest v1.x
-- Vite-native test framework
-- Jest-compatible API
+- Vite-native test framework with TypeScript support
+- Jest-compatible API (`expect()`, `describe()`, `it()`)
 - Fast HMR for test iteration
+- Tests written in `.test.ts` files
+- ESM-first (no CommonJS)
 
 **Storage**: Git repositories (file system)
 - One repository per conversation
@@ -71,6 +77,7 @@ frontend/
 **Git-Backed Storage**: Every conversation is a Git repository with:
 - Numbered message files (`0001-user.md`, `0002-assistant.md`)
 - Tool calls/results as JSON (`0003-tool_call.json`)
+- File attachments in `files/` subdirectory with SHA-256 hashing
 - Branding as YAML (`branding.yml`)
 - Cryptographic audit via commit hashes
 
@@ -85,8 +92,9 @@ frontend/
 ## Recent Changes
 
 1. **Added**: Node.js 24, Fastify, isomorphic-git, strong-soap, OpenAI/Anthropic SDKs
-2. **Created**: WSDL contract with 6 operations, OpenAPI spec with 9 endpoints
-3. **Designed**: 8 entities (Conversation, Message, Branch, ToolCall, ToolResult, Branding, SOAPOperation, StreamSession)
+2. **Created**: WSDL contract with 8 operations (added file upload/download), OpenAPI spec with 12 endpoints (added 3 file operations)
+3. **Designed**: 9 entities (Conversation, Message, Branch, ToolCall, ToolResult, Branding, FileAttachment, SOAPOperation, StreamSession)
+4. **File Attachments**: Complete file upload/download support via REST (multipart/form-data) and SOAP (Base64-encoded), stored in Git with SHA-256 hashing
 
 ## Key Design Decisions (from research.md)
 
@@ -118,7 +126,7 @@ frontend/
 ## Next Steps
 
 - Phase 1 complete: Data model, contracts, quickstart created ✅
-- Phase 2 complete: tasks.md generated (80 tasks, T001-T080) ✅
+- Phase 2 complete: tasks.md generated (85 tasks, T001-T085 with 5 file handling tasks) ✅
 - Phase 3: Implement following TDD workflow (start with T001: backend setup)
 - Phase 4: Run automated tests and validate
 - Phase 5: Validate via quickstart.md

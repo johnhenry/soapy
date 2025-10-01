@@ -130,6 +130,48 @@
         </xsd:complexType>
       </xsd:element>
 
+      <!-- CommitFile Request/Response -->
+      <xsd:element name="CommitFileRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="filename" type="xsd:string"/>
+            <xsd:element name="contentType" type="xsd:string"/>
+            <xsd:element name="data" type="xsd:base64Binary"/> <!-- Base64-encoded file data -->
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="CommitFileResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="commitHash" type="xsd:string"/>
+            <xsd:element name="fileMetadata" type="tns:FileMetadata"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- GetFile Request/Response -->
+      <xsd:element name="GetFileRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="filename" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetFileResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="filename" type="xsd:string"/>
+            <xsd:element name="contentType" type="xsd:string"/>
+            <xsd:element name="data" type="xsd:base64Binary"/>
+            <xsd:element name="metadata" type="tns:FileMetadata"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
       <!-- Complex Types -->
       <xsd:complexType name="Message">
         <xsd:sequence>
@@ -151,6 +193,18 @@
           <xsd:element name="accentColor" type="xsd:string" minOccurs="0"/>
           <xsd:element name="footerText" type="xsd:string" minOccurs="0"/>
           <xsd:element name="versionTimestamp" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="FileMetadata">
+        <xsd:sequence>
+          <xsd:element name="filename" type="xsd:string"/>
+          <xsd:element name="path" type="xsd:string"/>
+          <xsd:element name="size" type="xsd:int"/>
+          <xsd:element name="contentType" type="xsd:string"/>
+          <xsd:element name="hash" type="xsd:string"/> <!-- SHA-256 -->
+          <xsd:element name="uploadedAt" type="xsd:dateTime"/>
+          <xsd:element name="uploadedBy" type="xsd:string"/>
         </xsd:sequence>
       </xsd:complexType>
 
@@ -261,6 +315,20 @@
     <part name="parameters" element="tns:CommitToolResultResponse"/>
   </message>
 
+  <message name="CommitFileRequestMessage">
+    <part name="parameters" element="tns:CommitFileRequest"/>
+  </message>
+  <message name="CommitFileResponseMessage">
+    <part name="parameters" element="tns:CommitFileResponse"/>
+  </message>
+
+  <message name="GetFileRequestMessage">
+    <part name="parameters" element="tns:GetFileRequest"/>
+  </message>
+  <message name="GetFileResponseMessage">
+    <part name="parameters" element="tns:GetFileResponse"/>
+  </message>
+
   <!-- Fault Messages -->
   <message name="InvalidConversationFaultMessage">
     <part name="fault" element="tns:InvalidConversationFault"/>
@@ -322,6 +390,21 @@
       <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
       <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
       <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+    </operation>
+
+    <operation name="CommitFile">
+      <input message="tns:CommitFileRequestMessage"/>
+      <output message="tns:CommitFileResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+    </operation>
+
+    <operation name="GetFile">
+      <input message="tns:GetFileRequestMessage"/>
+      <output message="tns:GetFileResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
     </operation>
   </portType>
 
@@ -437,6 +520,41 @@
       </fault>
       <fault name="GitOperationFailedFault">
         <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="CommitFile">
+      <soap:operation soapAction="http://soapy.example.com/CommitFile"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="GitOperationFailedFault">
+        <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="GetFile">
+      <soap:operation soapAction="http://soapy.example.com/GetFile"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
       </fault>
     </operation>
   </binding>

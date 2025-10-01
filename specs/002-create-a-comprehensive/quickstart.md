@@ -341,7 +341,113 @@ curl -X PUT http://localhost:3000/v1/chat/550e8400-e29b-41d4-a716-446655440000/b
 
 ---
 
-## Step 10: Validate Git Storage
+## Step 10: Validate File Attachments
+
+### 10.1 Upload File via REST
+
+```bash
+# Create a test file
+echo "Sample document content" > test-document.txt
+
+# Upload file to conversation
+curl -X POST http://localhost:3000/v1/chat/550e8400-e29b-41d4-a716-446655440000/files \
+  -H "X-API-Key: test-api-key-123" \
+  -F "file=@test-document.txt"
+
+# Expected response:
+{
+  "commitHash": "pqr789...",
+  "fileMetadata": {
+    "filename": "test-document.txt",
+    "path": "files/test-document.txt",
+    "size": 25,
+    "contentType": "text/plain",
+    "hash": "sha256-hash-here...",
+    "uploadedAt": "2025-10-01T12:10:00Z",
+    "uploadedBy": "user-456",
+    "commitHash": "pqr789..."
+  }
+}
+```
+
+### 10.2 List Files
+
+```bash
+curl http://localhost:3000/v1/chat/550e8400-e29b-41d4-a716-446655440000/files \
+  -H "X-API-Key: test-api-key-123"
+
+# Expected response:
+{
+  "files": [
+    {
+      "filename": "test-document.txt",
+      "path": "files/test-document.txt",
+      "size": 25,
+      "contentType": "text/plain",
+      "hash": "sha256-hash-here...",
+      "uploadedAt": "2025-10-01T12:10:00Z"
+    }
+  ]
+}
+```
+
+### 10.3 Download File
+
+```bash
+curl http://localhost:3000/v1/chat/550e8400-e29b-41d4-a716-446655440000/files/test-document.txt \
+  -H "X-API-Key: test-api-key-123" \
+  --output downloaded-file.txt
+
+# Verify downloaded content
+cat downloaded-file.txt
+# Expected: "Sample document content"
+```
+
+### 10.4 Upload File via SOAP
+
+Create `upload-file.xml`:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tns="http://soapy.example.com/wsdl/v1">
+  <soap:Body>
+    <tns:CommitFileRequest>
+      <tns:conversationId>550e8400-e29b-41d4-a716-446655440000</tns:conversationId>
+      <tns:filename>test-image.png</tns:filename>
+      <tns:contentType>image/png</tns:contentType>
+      <tns:data>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==</tns:data>
+    </tns:CommitFileRequest>
+  </soap:Body>
+</soap:Envelope>
+```
+
+Submit via SOAP:
+```bash
+curl -X POST http://localhost:3000/soap \
+  -H "Content-Type: text/xml" \
+  -H "X-API-Key: test-api-key-123" \
+  -d @upload-file.xml
+
+# Expected response:
+<CommitFileResponse>
+  <commitHash>stu012...</commitHash>
+  <fileMetadata>
+    <filename>test-image.png</filename>
+    <path>files/test-image.png</path>
+    <size>95</size>
+    <contentType>image/png</contentType>
+    <hash>sha256-hash...</hash>
+    <uploadedAt>2025-10-01T12:11:00Z</uploadedAt>
+    <uploadedBy>user-456</uploadedBy>
+  </fileMetadata>
+</CommitFileResponse>
+```
+
+**✅ Success Criterion**: Files uploaded via both REST and SOAP, stored in Git with commits
+
+---
+
+## Step 11: Validate Git Storage
 
 Inspect the Git repository directly:
 
@@ -377,7 +483,7 @@ git log --all -- branding.yml
 
 ---
 
-## Step 11: Launch Test Client (Vite)
+## Step 12: Launch Test Client (Vite)
 
 ```bash
 # Terminal 2: Start frontend test client
@@ -403,7 +509,7 @@ Open browser: `http://localhost:5173`
 
 ---
 
-## Step 12: Run Automated Tests
+## Step 13: Run Automated Tests
 
 ```bash
 # Run all tests (contract, integration, unit)
@@ -518,12 +624,13 @@ soapy-auth check-org --user-id=abc --conversation-id=550e8400-e29b-41d4-a716-446
 **Quickstart Complete!** All 7 acceptance scenarios validated + CLI tools tested + Vite test client running.
 
 **Validation Checklist**:
-- [x] SOAP interface operational (WSDL + 6 operations)
-- [x] REST interface operational (9 endpoints)
+- [x] SOAP interface operational (WSDL + 8 operations including file upload/download)
+- [x] REST interface operational (12 endpoints including file operations)
 - [x] Streaming functional (SSE)
 - [x] Branching working (create/retrieve branches)
 - [x] Tool execution stored (call + result)
 - [x] Branding versioned in Git
+- [x] File attachments (upload, list, download via REST and SOAP)
 - [x] Multi-format conversion (OpenAI, Anthropic, SOAP)
 - [x] Git storage validated (direct inspection)
 - [x] Test client functional (FR-102)

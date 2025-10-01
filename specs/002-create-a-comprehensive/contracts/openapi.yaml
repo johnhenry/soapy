@@ -27,6 +27,8 @@ tags:
     description: Conversation branching operations
   - name: Branding
     description: Per-conversation branding configuration
+  - name: Files
+    description: File upload and retrieval operations
   - name: Tools
     description: AI agent tool execution
 
@@ -177,6 +179,89 @@ paths:
                 $ref: '#/components/schemas/Branding'
         '400':
           $ref: '#/components/responses/BadRequest'
+
+  /chat/{chatId}/files:
+    post:
+      summary: Upload a file to conversation
+      description: Upload a file (image, PDF, document) to the conversation's files/ directory
+      tags: [Files]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload (max 10MB)
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          description: File too large (max 10MB)
+
+    get:
+      summary: List uploaded files
+      description: Retrieve metadata for all files in the conversation
+      tags: [Files]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          description: File list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileMetadata'
+
+  /chat/{chatId}/files/{filename}:
+    get:
+      summary: Download a file
+      description: Retrieve a specific file from the conversation
+      tags: [Files]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the file to retrieve
+      responses:
+        '200':
+          description: File retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            image/*:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /chat/{chatId}/tool-call:
     post:
@@ -407,6 +492,46 @@ components:
         footerText:
           type: string
           maxLength: 500
+
+    FileMetadata:
+      type: object
+      required: [filename, path, size, contentType, hash, uploadedAt, uploadedBy, commitHash]
+      properties:
+        filename:
+          type: string
+          description: Name of the file
+        path:
+          type: string
+          description: Relative path within conversation (e.g., files/screenshot.png)
+        size:
+          type: integer
+          description: File size in bytes
+        contentType:
+          type: string
+          description: MIME type (e.g., image/png, application/pdf)
+        hash:
+          type: string
+          description: SHA-256 hash of file contents
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+          description: User ID who uploaded the file
+        commitHash:
+          type: string
+          pattern: '^[a-f0-9]{40}$'
+          description: Git commit hash when file was added
+
+    FileUploadResponse:
+      type: object
+      required: [commitHash, fileMetadata]
+      properties:
+        commitHash:
+          type: string
+          pattern: '^[a-f0-9]{40}$'
+        fileMetadata:
+          $ref: '#/components/schemas/FileMetadata'
 
     ToolCallSubmission:
       type: object

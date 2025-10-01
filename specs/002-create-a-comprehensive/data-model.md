@@ -3,6 +3,8 @@
 **Date**: 2025-10-01
 **Purpose**: Define data entities, relationships, validation rules, and storage formats for Soapy
 
+**Total Entities**: 9 (6 persisted, 3 transient)
+
 ---
 
 ## Entity Definitions
@@ -321,7 +323,73 @@ footerText: ""
 
 ---
 
-### 7. SOAPOperation (Transient)
+### 7. FileAttachment (Persisted)
+
+**Purpose**: Represents a file uploaded to a conversation (image, PDF, text, etc.)
+
+**Fields**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filename` | string | Yes | Name of the file (e.g., `screenshot.png`) |
+| `path` | string | Yes | Relative path within conversation (e.g., `files/screenshot.png`) |
+| `size` | integer | Yes | File size in bytes |
+| `contentType` | string | Yes | MIME type (e.g., `image/png`, `application/pdf`) |
+| `hash` | string | Yes | SHA-256 hash of file contents for integrity verification |
+| `uploadedAt` | ISO 8601 | Yes | Upload timestamp |
+| `uploadedBy` | UUID v4 | Yes | User ID who uploaded the file |
+| `commitHash` | string | Yes | Git commit hash when file was added (40-char hex) |
+
+**Storage**:
+- **Filesystem**: Files stored in `files/` subdirectory of conversation repo
+- **Metadata**: Stored in `.soapy-metadata.json` under `attachments[]` array
+- **Git**: Each file upload creates a commit with message: `"Add file: {filename}"`
+
+**Example `.soapy-metadata.json` entry**:
+```json
+{
+  "attachments": [
+    {
+      "filename": "screenshot.png",
+      "path": "files/screenshot.png",
+      "size": 145823,
+      "contentType": "image/png",
+      "hash": "a1b2c3d4e5f6...",
+      "uploadedAt": "2025-10-01T14:32:00Z",
+      "uploadedBy": "user-456",
+      "commitHash": "abc123def456..."
+    }
+  ]
+}
+```
+
+**Validation Rules** (FR-116):
+- Max size: 10MB per file
+- Allowed types: `image/*`, `application/pdf`, `text/*`, `application/json`, `text/csv`
+- Filename sanitization: No path traversal (`../`), no special chars except `-_.`
+
+**Relationships**:
+- `belongs to` Conversation (via conversation directory)
+- `referenced by` Messages (via markdown links)
+
+**Git Layout**:
+```
+conversations/550e8400.../
+├── files/
+│   ├── screenshot.png
+│   ├── report.pdf
+│   └── data.csv
+├── .soapy-metadata.json  # Contains attachments[] array
+└── ...
+```
+
+**Retrieval**:
+- Direct file access: `GET /v1/chat/{chatId}/files/{filename}`
+- List files: Parse `.soapy-metadata.json` attachments array
+- References in messages: Markdown links like `![Screenshot](files/screenshot.png)`
+
+---
+
+### 8. SOAPOperation (Transient)
 
 **Purpose**: Represents a SOAP request/response interaction (not persisted)
 

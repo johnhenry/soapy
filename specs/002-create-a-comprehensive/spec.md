@@ -269,6 +269,18 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - **FR-072**: System MUST validate branding configuration schema [NEEDS CLARIFICATION: validation rules - required fields, URL format, color format?]
 - **FR-073**: System MUST fall back to system-wide default branding configuration when a conversation has no explicit branding defined
 
+**File Attachments**
+- **FR-110**: System MUST allow messages to reference files stored in the conversation's files/ subdirectory using markdown syntax (e.g., `![image](files/screenshot.png)` or `[document](files/report.pdf)`)
+- **FR-111**: System MUST provide SOAP operation CommitFile to upload files to conversation storage
+- **FR-112**: System MUST provide REST endpoint POST /v1/chat/{chatId}/files to upload files with multipart/form-data
+- **FR-113**: System MUST provide REST endpoint GET /v1/chat/{chatId}/files/{filename} to retrieve uploaded files
+- **FR-114**: System MUST store uploaded files in the files/ subdirectory of the conversation repository
+- **FR-115**: System MUST create a Git commit when files are uploaded (commit message: "Add file: {filename}")
+- **FR-116**: System MUST validate file uploads (max size: 10MB per file, allowed types: images, PDFs, text files, JSON, CSV)
+- **FR-117**: System MUST return file metadata in responses (filename, size, contentType, hash, uploadedAt timestamp)
+- **FR-118**: System MUST support Base64-encoded file uploads via SOAP for binary data transfer
+- **FR-119**: System MUST calculate and store SHA-256 hash of uploaded files for integrity verification
+
 #### Security and Access Control
 
 **Authentication**
@@ -306,8 +318,11 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 #### Implementation Constraints
 
 **Platform and Technology**
-- **FR-101**: System MUST be implemented using Node.js version 24
+- **FR-101**: System MUST be implemented using Node.js version 24 with TypeScript for type safety and developer experience
 - **FR-102**: System MUST include a Vite-based test client that exercises all functional requirements and validates SOAP, REST, streaming, branching, tool execution, and branding features
+- **FR-120**: System MUST use ES modules (import/export syntax) throughout the codebase, not CommonJS (require/module.exports)
+- **FR-121**: System MUST use Vitest as the testing framework for unit, integration, and contract tests
+- **FR-122**: System MUST leverage latest JavaScript features available in Node.js 24 including async/await, optional chaining, nullish coalescing, top-level await, and native fetch API
 
 ### Key Entities
 
