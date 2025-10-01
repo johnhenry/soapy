@@ -10,7 +10,7 @@
 1. Parse user description from Input
    � Extract key concepts: SOAP, REST, Git, streaming, agents, branding
 2. Identify actors: enterprise clients, modern developers, compliance officers, AI researchers
-3. For each unclear aspect: marked with [NEEDS CLARIFICATION]
+3. All unclear aspects resolved in research.md (9 clarifications complete)
 4. Fill User Scenarios & Testing section
    � Primary flows: SOAP submission, REST retrieval, branching, streaming
 5. Generate Functional Requirements
@@ -182,7 +182,7 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - **FR-016**: System MUST support Accept header negotiation for content type selection
 - **FR-017**: System MUST return HTTP 404 for non-existent conversation IDs
 - **FR-018**: System MUST use default format (JSON with OpenAI structure) and log warnings when clients request unsupported format combinations
-- **FR-019**: System MUST support CORS headers for browser-based clients [NEEDS CLARIFICATION: allowed origins - specific domains, wildcard, configurable?]
+- **FR-019**: System MUST support CORS headers for browser-based clients with configurable allow-list via `ALLOWED_ORIGINS` env var (comma-separated domains or `*` wildcard, default: `*`)
 
 **Streaming Support**
 - **FR-020**: System MUST support Server-Sent Events (SSE) streaming when Accept: text/event-stream header is provided (see FR-024 for disconnection handling)
@@ -190,7 +190,7 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - **FR-022**: System MUST support WebSocket upgrade on REST endpoints for bidirectional communication
 - **FR-023**: System MUST send proper SSE event types for data, errors, and completion
 - **FR-024**: System MUST continue AI generation to completion and store the full response in Git when clients disconnect during streaming. The completed response MUST remain available for later retrieval via standard GET endpoints (applies to both SSE and WebSocket connections)
-- **FR-025**: System MUST support streaming timeout configuration [NEEDS CLARIFICATION: default timeout value and configurability]
+- **FR-025**: System MUST support streaming timeout configuration via `STREAM_TIMEOUT_MS` env var (default: 300000ms / 5 minutes) for both SSE and WebSocket connections
 - **FR-109**: [REMOVED - Consolidated into FR-024]
 
 #### Conversation Storage
@@ -266,7 +266,7 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - **FR-069**: System MUST version branding changes with conversation history in Git
 - **FR-070**: System MUST retrieve active branding for current conversation state
 - **FR-071**: System MUST retrieve historical branding for past conversation states
-- **FR-072**: System MUST validate branding configuration schema [NEEDS CLARIFICATION: validation rules - required fields, URL format, color format?]
+- **FR-072**: System MUST validate branding configuration schema using JSON Schema (required: logoUrl, primaryColor; logoUrl must be HTTPS; colors in hex format #RRGGBB or #RGB; footerText max 500 chars)
 - **FR-073**: System MUST fall back to system-wide default branding configuration when a conversation has no explicit branding defined
 
 **File Attachments**
@@ -296,23 +296,23 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - **FR-079**: System MUST isolate conversation data between different organizations
 - **FR-080**: System MUST support hard deletion of conversations, permanently removing the conversation repository and all associated Git data
 - **FR-081**: System MUST sanitize error messages to prevent information leakage
-- **FR-082**: System MUST comply with data retention policies [NEEDS CLARIFICATION: retention periods - configurable, compliance requirements?]
+- **FR-082**: System MUST comply with data retention policies via configurable `RETENTION_DAYS` env var (default: 0 for infinite retention; supports GDPR 30 days, SOC 2 7 years/2555 days; triggers automatic hard delete after retention period)
 
 #### Performance and Scalability
 
 **Performance Requirements**
-- **FR-083**: System MUST respond to SOAP requests within acceptable latency [NEEDS CLARIFICATION: target latency - p50, p95, p99 thresholds?]
-- **FR-084**: System MUST respond to REST requests within acceptable latency [NEEDS CLARIFICATION: target latency thresholds?]
+- **FR-083**: System MUST respond to SOAP requests within acceptable latency (p50 <500ms, p95 <1500ms, p99 <3000ms, excluding AI generation time)
+- **FR-084**: System MUST respond to REST requests within acceptable latency (p50 <200ms, p95 <800ms, p99 <2000ms, excluding AI generation time)
 - **FR-085**: System MUST handle concurrent requests to different conversations without blocking
-- **FR-086**: System MUST support concurrent streaming clients [NEEDS CLARIFICATION: maximum concurrent streams per conversation?]
-- **FR-087**: System MUST optimize Git operations for large conversation histories [NEEDS CLARIFICATION: optimization strategy - lazy loading, pagination, caching?]
+- **FR-086**: System MUST support concurrent streaming clients with configurable limit via `MAX_STREAMS_PER_CONVERSATION` env var (default: 10 streams per conversation, returns HTTP 429 when exceeded)
+- **FR-087**: System MUST optimize Git operations for large conversation histories using shallow clone (--depth=1), in-memory LRU cache (1000 entries, ~10MB), pagination (max 100 messages per request), and weekly git gc
 - **FR-091**: System MUST serialize write operations per conversation using a queue-based concurrency control mechanism
 - **FR-092**: System MUST process queued write operations in FIFO order to maintain message sequence integrity
 
 **Scalability Requirements**
 - **FR-088**: System MUST support a target scale of thousands of conversations (1K-10K range) with acceptable performance
 - **FR-089**: System MUST support unlimited message count per conversation with no hard limits or special archiving
-- **FR-090**: System MUST handle repository sharding for scale [NEEDS CLARIFICATION: sharding strategy - by user, by time, by hash?]
+- **FR-090**: System MUST handle repository sharding for scale (deferred to Phase 3+; when needed, use hash-based sharding by conversationId first 2 hex chars → 256 shards, path pattern: conversations/{shard}/{conversationId}/)
 - **FR-108**: System MUST allow Git repositories to grow without enforced archiving, accepting graceful performance degradation for very large conversations
 
 #### Implementation Constraints
@@ -385,32 +385,29 @@ As an AI researcher, I want to branch conversations and replay agent reasoning w
 - [x] All mandatory sections completed
 
 ### Requirement Completeness
-- [ ] No [NEEDS CLARIFICATION] markers remain - **6 clarifications needed** (deferred to planning)
-- [x] Requirements are testable and unambiguous (except deferred items)
+- [x] No [NEEDS CLARIFICATION] markers remain - **All 9 clarifications resolved in research.md**
+- [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 
-### Outstanding Clarifications
+### Resolved Clarifications (See research.md for full details)
 
-**Security & Authentication (High Priority) - Deferred to Planning**
-1. WS-Security profiles required (FR-010) - SOAP-specific implementation detail
-2. WS-ReliableMessaging delivery guarantees (FR-011) - SOAP-specific implementation detail
-3. CORS configuration (FR-019) - Configuration detail better suited for planning phase
+**Configuration & System Behavior**
+1. ✅ CORS configuration (FR-019) - Configurable via `ALLOWED_ORIGINS` env var (default: `*`)
+2. ✅ Streaming timeout (FR-025) - Default 300s (5 min) via `STREAM_TIMEOUT_MS` env var
+3. ✅ Branding validation (FR-072) - JSON Schema with HTTPS URLs, hex colors #RRGGBB
+4. ✅ Data retention (FR-082) - Configurable via `RETENTION_DAYS` env var (default: infinite)
 
-**Data Management (Medium Priority)**
-4. Data retention policies (FR-082) - Compliance requirement needing stakeholder input
+**Performance & Scalability**
+5. ✅ Latency targets (FR-083, FR-084) - SOAP p95 <1500ms, REST p95 <800ms (excludes AI time)
+6. ✅ Concurrent streams (FR-086) - Default 10 streams/conversation via `MAX_STREAMS_PER_CONVERSATION`
+7. ✅ Git optimization (FR-087) - Shallow clone + LRU cache (1000 entries) + pagination (100 msgs)
+8. ✅ Sharding strategy (FR-090) - Deferred to Phase 3+; hash-based by conversationId when needed
 
-**Performance & Scale (Medium Priority) - Deferred to Planning**
-5. Performance latency targets (FR-083, FR-084) - Quantitative targets to be defined during architecture planning
-6. Maximum concurrent streams (FR-086) - Resource allocation decision for planning phase
-7. Message count limits per conversation (FR-089) - Scalability constraint to be determined during design
-8. Repository sharding strategy (FR-090) - Architecture decision for planning phase
-
-**Configuration (Low Priority) - Deferred to Planning**
-9. Streaming timeout defaults (FR-025) - Configuration parameter for implementation phase
-10. Branding validation rules (FR-072) - Schema design detail for planning phase
-11. Git optimization strategy (FR-087) - Performance optimization strategy for planning phase
+**Features Deferred to Post-MVP**
+9. ⏸️ WS-Security (FR-010) - Phase 5 (post-MVP)
+10. ⏸️ WS-ReliableMessaging (FR-011) - Phase 5 (post-MVP)
 
 ---
 
