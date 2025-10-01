@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Soapy Internal Git Storage Format",
+  "description": "Internal canonical format for Git-stored conversations",
+  "type": "object",
+  "required": ["conversation", "messages"],
+  "properties": {
+    "conversation": {
+      "$ref": "#/definitions/Conversation"
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/Message"
+          },
+          {
+            "$ref": "#/definitions/ToolCall"
+          },
+          {
+            "$ref": "#/definitions/ToolResult"
+          }
+        ]
+      }
+    },
+    "branding": {
+      "$ref": "#/definitions/Branding"
+    }
+  },
+  "definitions": {
+    "Conversation": {
+      "type": "object",
+      "required": ["id", "organizationId", "ownerId", "createdAt", "mainBranch", "branches"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "organizationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "ownerId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "mainBranch": {
+          "type": "string"
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Message": {
+      "type": "object",
+      "required": ["sequenceNumber", "role", "content", "timestamp", "commitHash"],
+      "properties": {
+        "sequenceNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant", "system"]
+        },
+        "content": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aiProvider": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "commitHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "required": ["sequenceNumber", "toolName", "parameters", "requestedAt", "commitHash"],
+      "properties": {
+        "sequenceNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "toolName": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "commitHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      }
+    },
+    "ToolResult": {
+      "type": "object",
+      "required": ["sequenceNumber", "toolCallRef", "result", "executedAt", "status", "retryCount", "commitHash"],
+      "properties": {
+        "sequenceNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "toolCallRef": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "result": {
+          "type": "object"
+        },
+        "executedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "failure"]
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "commitHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      }
+    },
+    "Branding": {
+      "type": "object",
+      "required": ["logoUrl", "primaryColor", "versionTimestamp"],
+      "properties": {
+        "logoUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://.*"
+        },
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        },
+        "secondaryColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        },
+        "footerText": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "versionTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

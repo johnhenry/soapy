@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="SoapyService"
+             targetNamespace="http://soapy.example.com/wsdl/v1"
+             xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://soapy.example.com/wsdl/v1"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+  <!-- Types -->
+  <types>
+    <xsd:schema targetNamespace="http://soapy.example.com/wsdl/v1">
+
+      <!-- CommitMessage Request/Response -->
+      <xsd:element name="CommitMessageRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="role" type="tns:MessageRole"/>
+            <xsd:element name="content" type="xsd:string"/>
+            <xsd:element name="aiProvider" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="model" type="xsd:string" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="CommitMessageResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="commitHash" type="xsd:string"/>
+            <xsd:element name="sequenceNumber" type="xsd:int"/>
+            <xsd:element name="timestamp" type="xsd:dateTime"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- BranchConversation Request/Response -->
+      <xsd:element name="BranchConversationRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="branchName" type="xsd:string"/>
+            <xsd:element name="fromMessageNumber" type="xsd:int"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="BranchConversationResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="branchRef" type="xsd:string"/>
+            <xsd:element name="createdAt" type="xsd:dateTime"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- GetConversation Request/Response -->
+      <xsd:element name="GetConversationRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="branchName" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="format" type="tns:OutputFormat" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetConversationResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="messages" type="tns:Message" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- GetBranding Request/Response -->
+      <xsd:element name="GetBrandingRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetBrandingResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="branding" type="tns:Branding"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- CommitToolCall Request/Response -->
+      <xsd:element name="CommitToolCallRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="toolName" type="xsd:string"/>
+            <xsd:element name="parameters" type="xsd:string"/> <!-- JSON string -->
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="CommitToolCallResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="commitHash" type="xsd:string"/>
+            <xsd:element name="sequenceNumber" type="xsd:int"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- CommitToolResult Request/Response -->
+      <xsd:element name="CommitToolResultRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="toolCallRef" type="xsd:int"/>
+            <xsd:element name="result" type="xsd:string"/> <!-- JSON string -->
+            <xsd:element name="status" type="tns:ToolStatus"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="CommitToolResultResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="commitHash" type="xsd:string"/>
+            <xsd:element name="sequenceNumber" type="xsd:int"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- Complex Types -->
+      <xsd:complexType name="Message">
+        <xsd:sequence>
+          <xsd:element name="sequenceNumber" type="xsd:int"/>
+          <xsd:element name="role" type="tns:MessageRole"/>
+          <xsd:element name="content" type="xsd:string"/>
+          <xsd:element name="timestamp" type="xsd:dateTime"/>
+          <xsd:element name="aiProvider" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="model" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="commitHash" type="xsd:string"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="Branding">
+        <xsd:sequence>
+          <xsd:element name="logoUrl" type="xsd:string"/>
+          <xsd:element name="primaryColor" type="xsd:string"/>
+          <xsd:element name="secondaryColor" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="accentColor" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="footerText" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="versionTimestamp" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <!-- Enums -->
+      <xsd:simpleType name="MessageRole">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="user"/>
+          <xsd:enumeration value="assistant"/>
+          <xsd:enumeration value="system"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+
+      <xsd:simpleType name="OutputFormat">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="openai"/>
+          <xsd:enumeration value="anthropic"/>
+          <xsd:enumeration value="soap"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+
+      <xsd:simpleType name="ToolStatus">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="success"/>
+          <xsd:enumeration value="failure"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+
+      <!-- SOAP Faults -->
+      <xsd:element name="InvalidConversationFault">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="message" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="UnauthorizedAccessFault">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="organizationId" type="xsd:string"/>
+            <xsd:element name="message" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GitOperationFailedFault">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="operation" type="xsd:string"/>
+            <xsd:element name="message" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="ProviderUnavailableFault">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="provider" type="xsd:string"/>
+            <xsd:element name="message" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+    </xsd:schema>
+  </types>
+
+  <!-- Messages -->
+  <message name="CommitMessageRequestMessage">
+    <part name="parameters" element="tns:CommitMessageRequest"/>
+  </message>
+  <message name="CommitMessageResponseMessage">
+    <part name="parameters" element="tns:CommitMessageResponse"/>
+  </message>
+
+  <message name="BranchConversationRequestMessage">
+    <part name="parameters" element="tns:BranchConversationRequest"/>
+  </message>
+  <message name="BranchConversationResponseMessage">
+    <part name="parameters" element="tns:BranchConversationResponse"/>
+  </message>
+
+  <message name="GetConversationRequestMessage">
+    <part name="parameters" element="tns:GetConversationRequest"/>
+  </message>
+  <message name="GetConversationResponseMessage">
+    <part name="parameters" element="tns:GetConversationResponse"/>
+  </message>
+
+  <message name="GetBrandingRequestMessage">
+    <part name="parameters" element="tns:GetBrandingRequest"/>
+  </message>
+  <message name="GetBrandingResponseMessage">
+    <part name="parameters" element="tns:GetBrandingResponse"/>
+  </message>
+
+  <message name="CommitToolCallRequestMessage">
+    <part name="parameters" element="tns:CommitToolCallRequest"/>
+  </message>
+  <message name="CommitToolCallResponseMessage">
+    <part name="parameters" element="tns:CommitToolCallResponse"/>
+  </message>
+
+  <message name="CommitToolResultRequestMessage">
+    <part name="parameters" element="tns:CommitToolResultRequest"/>
+  </message>
+  <message name="CommitToolResultResponseMessage">
+    <part name="parameters" element="tns:CommitToolResultResponse"/>
+  </message>
+
+  <!-- Fault Messages -->
+  <message name="InvalidConversationFaultMessage">
+    <part name="fault" element="tns:InvalidConversationFault"/>
+  </message>
+  <message name="UnauthorizedAccessFaultMessage">
+    <part name="fault" element="tns:UnauthorizedAccessFault"/>
+  </message>
+  <message name="GitOperationFailedFaultMessage">
+    <part name="fault" element="tns:GitOperationFailedFault"/>
+  </message>
+  <message name="ProviderUnavailableFaultMessage">
+    <part name="fault" element="tns:ProviderUnavailableFault"/>
+  </message>
+
+  <!-- Port Type -->
+  <portType name="SoapyPortType">
+    <operation name="CommitMessage">
+      <input message="tns:CommitMessageRequestMessage"/>
+      <output message="tns:CommitMessageResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+      <fault name="ProviderUnavailableFault" message="tns:ProviderUnavailableFaultMessage"/>
+    </operation>
+
+    <operation name="BranchConversation">
+      <input message="tns:BranchConversationRequestMessage"/>
+      <output message="tns:BranchConversationResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+    </operation>
+
+    <operation name="GetConversation">
+      <input message="tns:GetConversationRequestMessage"/>
+      <output message="tns:GetConversationResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="GetBranding">
+      <input message="tns:GetBrandingRequestMessage"/>
+      <output message="tns:GetBrandingResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="CommitToolCall">
+      <input message="tns:CommitToolCallRequestMessage"/>
+      <output message="tns:CommitToolCallResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+    </operation>
+
+    <operation name="CommitToolResult">
+      <input message="tns:CommitToolResultRequestMessage"/>
+      <output message="tns:CommitToolResultResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="GitOperationFailedFault" message="tns:GitOperationFailedFaultMessage"/>
+    </operation>
+  </portType>
+
+  <!-- Binding -->
+  <binding name="SoapyBinding" type="tns:SoapyPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+    <operation name="CommitMessage">
+      <soap:operation soapAction="http://soapy.example.com/CommitMessage"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="GitOperationFailedFault">
+        <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+      <fault name="ProviderUnavailableFault">
+        <soap:fault name="ProviderUnavailableFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="BranchConversation">
+      <soap:operation soapAction="http://soapy.example.com/BranchConversation"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="GitOperationFailedFault">
+        <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="GetConversation">
+      <soap:operation soapAction="http://soapy.example.com/GetConversation"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="GetBranding">
+      <soap:operation soapAction="http://soapy.example.com/GetBranding"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="CommitToolCall">
+      <soap:operation soapAction="http://soapy.example.com/CommitToolCall"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="GitOperationFailedFault">
+        <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="CommitToolResult">
+      <soap:operation soapAction="http://soapy.example.com/CommitToolResult"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="GitOperationFailedFault">
+        <soap:fault name="GitOperationFailedFault" use="literal"/>
+      </fault>
+    </operation>
+  </binding>
+
+  <!-- Service -->
+  <service name="SoapyService">
+    <documentation>Soapy Hybrid SOAP/REST AI API - SOAP Interface v1.0</documentation>
+    <port name="SoapyPort" binding="tns:SoapyBinding">
+      <soap:address location="http://localhost:3000/soap"/>
+    </port>
+  </service>
+
+</definitions>

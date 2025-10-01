@@ -1,0 +1,603 @@
+openapi: 3.0.3
+info:
+  title: Soapy REST API
+  description: |
+    Hybrid SOAP/REST AI API system with Git-backed conversation storage.
+
+    Supports multiple output formats (OpenAI, Anthropic, SOAP XML) and streaming via SSE/WebSocket.
+  version: 1.0.0
+  contact:
+    name: Soapy API Support
+    url: https://soapy.example.com
+servers:
+  - url: http://localhost:3000/v1
+    description: Local development server
+  - url: https://api.soapy.example.com/v1
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: Conversations
+    description: Conversation management operations
+  - name: Messages
+    description: Message submission and retrieval
+  - name: Branches
+    description: Conversation branching operations
+  - name: Branding
+    description: Per-conversation branding configuration
+  - name: Tools
+    description: AI agent tool execution
+
+paths:
+  /chat/{chatId}:
+    get:
+      summary: Retrieve conversation messages
+      description: |
+        Retrieve messages from a conversation with format conversion support.
+        Supports OpenAI, Anthropic, SOAP XML, and plain text formats.
+        Can stream responses via Server-Sent Events.
+      tags: [Messages]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Type'
+        - $ref: '#/components/parameters/BranchName'
+        - name: Accept
+          in: header
+          description: Set to `text/event-stream` for SSE streaming
+          schema:
+            type: string
+            enum: [application/json, text/event-stream]
+      responses:
+        '200':
+          description: Conversation messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/OpenAIConversation'
+                  - $ref: '#/components/schemas/AnthropicConversation'
+                  - $ref: '#/components/schemas/GenericConversation'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/SSEStream'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /chat/{chatId}/message:
+    post:
+      summary: Submit a new message to conversation
+      description: Submit user message and optionally trigger AI response generation
+      tags: [Messages]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageSubmission'
+      responses:
+        '201':
+          description: Message committed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/{chatId}/branch:
+    post:
+      summary: Create a new conversation branch
+      description: Branch from a specific message to explore alternative conversation paths
+      tags: [Branches]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreation'
+      responses:
+        '201':
+          description: Branch created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Branch name conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chat/{chatId}/branches:
+    get:
+      summary: List all branches for a conversation
+      description: Retrieve metadata for all branches
+      tags: [Branches]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          description: Branches list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchesList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/{chatId}/branding:
+    get:
+      summary: Get conversation branding configuration
+      description: Retrieve current branding (logo, colors, footer text)
+      tags: [Branding]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          description: Branding retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update conversation branding
+      description: Update branding configuration (versioned in Git)
+      tags: [Branding]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandingUpdate'
+      responses:
+        '200':
+          description: Branding updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /chat/{chatId}/tool-call:
+    post:
+      summary: Submit a tool call request
+      description: Submit tool/function execution request for AI agent
+      tags: [Tools]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCallSubmission'
+      responses:
+        '201':
+          description: Tool call committed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /chat/{chatId}/tool-result:
+    post:
+      summary: Submit a tool execution result
+      description: Submit the outcome of a tool execution
+      tags: [Tools]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolResultSubmission'
+      responses:
+        '201':
+          description: Tool result committed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResultResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /conversation/{conversationId}:
+    get:
+      summary: Get full conversation details
+      description: Retrieve complete conversation metadata and messages
+      tags: [Conversations]
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Conversation details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (or use Authorization: Bearer <key>)
+
+  parameters:
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      description: Conversation ID
+      schema:
+        type: string
+        format: uuid
+
+    Format:
+      name: format
+      in: query
+      description: Output format for messages
+      schema:
+        type: string
+        enum: [openai, anthropic, soap]
+        default: openai
+
+    Type:
+      name: type
+      in: query
+      description: Output content type
+      schema:
+        type: string
+        enum: [json, xml, plain]
+        default: json
+
+    BranchName:
+      name: branch
+      in: query
+      description: Branch name (defaults to 'main')
+      schema:
+        type: string
+        default: main
+
+  schemas:
+    MessageSubmission:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+          maxLength: 1048576  # 1MB
+        aiProvider:
+          type: string
+          description: AI provider for assistant messages (openai, anthropic)
+        model:
+          type: string
+          description: Model identifier (e.g., gpt-4, claude-3-opus)
+
+    MessageResponse:
+      type: object
+      required: [commitHash, sequenceNumber, timestamp]
+      properties:
+        commitHash:
+          type: string
+          pattern: '^[a-f0-9]{40}$'
+        sequenceNumber:
+          type: integer
+          minimum: 1
+        timestamp:
+          type: string
+          format: date-time
+
+    BranchCreation:
+      type: object
+      required: [branchName, fromMessageNumber]
+      properties:
+        branchName:
+          type: string
+          pattern: '^[a-zA-Z0-9-]+$'
+        fromMessageNumber:
+          type: integer
+          minimum: 1
+
+    BranchResponse:
+      type: object
+      required: [branchRef, createdAt]
+      properties:
+        branchRef:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    BranchesList:
+      type: object
+      required: [branches]
+      properties:
+        branches:
+          type: array
+          items:
+            type: object
+            required: [name, sourceMessageNumber, messageCount]
+            properties:
+              name:
+                type: string
+              sourceMessageNumber:
+                type: integer
+              messageCount:
+                type: integer
+              createdAt:
+                type: string
+                format: date-time
+
+    Branding:
+      type: object
+      required: [logoUrl, primaryColor, versionTimestamp]
+      properties:
+        logoUrl:
+          type: string
+          format: uri
+          pattern: '^https://.*'
+        primaryColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        secondaryColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        accentColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        footerText:
+          type: string
+          maxLength: 500
+        versionTimestamp:
+          type: string
+          format: date-time
+
+    BrandingUpdate:
+      type: object
+      required: [logoUrl, primaryColor]
+      properties:
+        logoUrl:
+          type: string
+          format: uri
+          pattern: '^https://.*'
+        primaryColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        secondaryColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        accentColor:
+          type: string
+          pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+        footerText:
+          type: string
+          maxLength: 500
+
+    ToolCallSubmission:
+      type: object
+      required: [toolName, parameters]
+      properties:
+        toolName:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+
+    ToolCallResponse:
+      type: object
+      required: [commitHash, sequenceNumber]
+      properties:
+        commitHash:
+          type: string
+          pattern: '^[a-f0-9]{40}$'
+        sequenceNumber:
+          type: integer
+
+    ToolResultSubmission:
+      type: object
+      required: [toolCallRef, result, status]
+      properties:
+        toolCallRef:
+          type: integer
+          minimum: 1
+        result:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [success, failure]
+
+    ToolResultResponse:
+      type: object
+      required: [commitHash, sequenceNumber]
+      properties:
+        commitHash:
+          type: string
+          pattern: '^[a-f0-9]{40}$'
+        sequenceNumber:
+          type: integer
+
+    OpenAIConversation:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant, system, tool]
+              content:
+                type: string
+              name:
+                type: string
+              tool_calls:
+                type: array
+                items:
+                  type: object
+
+    AnthropicConversation:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                oneOf:
+                  - type: string
+                  - type: array
+                    items:
+                      type: object
+
+    GenericConversation:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            required: [sequenceNumber, role, content, timestamp]
+            properties:
+              sequenceNumber:
+                type: integer
+              role:
+                type: string
+              content:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+              aiProvider:
+                type: string
+              model:
+                type: string
+              commitHash:
+                type: string
+
+    ConversationDetails:
+      type: object
+      required: [id, organizationId, ownerId, createdAt, branches]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        mainBranch:
+          type: string
+        branches:
+          type: array
+          items:
+            type: string
+
+    SSEStream:
+      type: object
+      description: Server-Sent Events stream of tokens
+      properties:
+        event:
+          type: string
+          enum: [data, error, done]
+        data:
+          type: object
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "conversation_not_found"
+              message: "Conversation not found"
+
+    Forbidden:
+      description: Unauthorized access to conversation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "unauthorized_access"
+              message: "You do not have permission to access this conversation"
+
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "invalid_request"
+              message: "Invalid request body"
