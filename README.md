@@ -11,6 +11,8 @@ Soapy is a hybrid SOAP/REST API system providing enterprise-grade conversation m
 - ✅ **Conversation Branching**: Git branches enable alternative conversation paths
 - ✅ **Multi-Provider AI**: OpenAI and Anthropic integration (extensible)
 - ✅ **Per-Conversation Branding**: Customizable UI branding stored in Git
+- ✅ **CLI Tools**: Git-style sub-command interface (soapy git, soapy convert, soapy ai)
+- ✅ **Optional Authentication**: API key-based authentication with organization access control
 
 ## Tech Stack
 
@@ -98,6 +100,52 @@ npm run test:watch
 
 # Run tests with UI
 npm run test:ui
+```
+
+### CLI Tools
+
+Soapy provides a unified CLI with git-style sub-commands:
+
+```bash
+# Main help
+npm run soapy -- --help
+
+# Git operations
+npm run soapy -- git list-conversations
+npm run soapy -- git create-conversation --id conv-123 --org org-456
+npm run soapy -- git get-messages --id conv-123 --json
+
+# Format conversion
+echo '{"messages":[...]}' | npm run soapy -- convert to-openai
+npm run soapy -- convert openai-to-anthropic < input.json > output.json
+
+# AI operations (requires API keys in .env)
+npm run soapy -- ai generate --provider openai --prompt "Hello"
+npm run soapy -- ai stream --provider anthropic --prompt "Tell me a story"
+
+# Health check
+npm run health
+```
+
+### Optional Authentication
+
+Authentication is disabled by default. To enable:
+
+```bash
+# In .env file:
+AUTH_ENABLED=true
+AUTH_REQUIRE_ORG=true
+API_KEYS=key1:org-abc:user-1,key2:org-xyz:user-2
+```
+
+Then use API keys in requests:
+
+```bash
+# Using X-API-Key header
+curl -H "X-API-Key: key1" http://localhost:3000/v1/chat/conv-123
+
+# Using Authorization Bearer token
+curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ```
 
 ## API Endpoints
