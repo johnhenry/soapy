@@ -1,18 +1,14 @@
-import Fastify from 'fastify';
 import { config } from 'dotenv';
+import { buildApp } from './app.js';
 
 config();
-
-const fastify = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || 'info',
-  },
-});
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || 'localhost';
 
 async function start() {
+  const fastify = await buildApp();
+  
   try {
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`Soapy server listening on http://${HOST}:${PORT}`);

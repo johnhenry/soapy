@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import { buildApp } from '../../src/app.js';
 
 describe('SOAP WSDL Contract Tests', () => {
-  let app: ReturnType<typeof Fastify>;
+  let app: FastifyInstance;
   const baseUrl = 'http://localhost:3001';
 
   beforeAll(async () => {
-    app = Fastify({ logger: false });
-    // SOAP routes will be registered here
+    app = await buildApp();
     await app.listen({ port: 3001, host: 'localhost' });
   });
 
@@ -22,7 +22,8 @@ describe('SOAP WSDL Contract Tests', () => {
 
     const wsdl = await response.text();
     expect(wsdl).toContain('<?xml');
-    expect(wsdl).toContain('wsdl:definitions');
+    expect(wsdl).toContain('definitions');
+    expect(wsdl).toContain('SoapyService');
   });
 
   it('should define CommitMessage operation in WSDL', async () => {

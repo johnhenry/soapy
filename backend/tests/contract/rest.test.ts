@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import { buildApp } from '../../src/app.js';
 
 describe('REST OpenAPI Contract Tests', () => {
-  let app: ReturnType<typeof Fastify>;
+  let app: FastifyInstance;
   const baseUrl = 'http://localhost:3002';
 
   beforeAll(async () => {
-    app = Fastify({ logger: false });
-    // REST routes will be registered here
+    app = await buildApp();
     await app.listen({ port: 3002, host: 'localhost' });
   });
 
