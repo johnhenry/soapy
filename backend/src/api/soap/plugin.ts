@@ -2,6 +2,11 @@ import type { FastifyPluginAsync } from 'fastify';
 import { getWsdlContent } from './service.js';
 
 const soapPlugin: FastifyPluginAsync = async (fastify) => {
+  // Add content type parser for XML
+  fastify.addContentTypeParser('text/xml', { parseAs: 'string' }, async (_req, body) => {
+    return body;
+  });
+
   // Serve WSDL
   fastify.get('/soap', async (request, reply) => {
     const isWsdlRequest = request.query && (request.query as { wsdl?: string }).wsdl !== undefined;

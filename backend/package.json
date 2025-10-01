@@ -16,7 +16,11 @@
     "test:ui": "vitest --ui",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "setup-test-data": "tsx src/cli/setup-test-data.ts"
+    "setup-test-data": "tsx src/cli/setup-test-data.ts",
+    "health": "tsx src/cli/soapy-health.ts"
+  },
+  "bin": {
+    "soapy-health": "./dist/cli/soapy-health.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
