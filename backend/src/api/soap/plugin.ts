@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { SOAP } from 'strong-soap';
+import strongSoap from 'strong-soap';
+const { SOAP } = strongSoap;
 import { getWsdlContent, createSoapServer } from './service.js';
 
 const soapPlugin: FastifyPluginAsync = async (fastify) => {
