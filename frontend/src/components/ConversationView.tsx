@@ -7,42 +7,46 @@ import { BranchManager } from './BranchManager';
 import { FileUploader } from './FileUploader';
 import { BrandingEditor } from './BrandingEditor';
 import { ToolCallView } from './ToolCallView';
-import type { Message, Branding, ToolCall, ToolResult } from '../types';
+import type { Message, Branding, ToolCall, ToolResult, ConversationItem } from '../types';
 import './ConversationView.css';
 
 type TabType = 'messages' | 'files' | 'branding';
 
 interface ConversationViewProps {
   conversationId: string;
+  onConversationCreated?: () => void;
 }
 
-export function ConversationView({ conversationId }: ConversationViewProps) {
+export function ConversationView({ conversationId, onConversationCreated }: ConversationViewProps) {
   const { config } = useApi();
   const [activeTab, setActiveTab] = useState<TabType>('messages');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [items, setItems] = useState<ConversationItem[]>([]);
   const [branding, setBranding] = useState<Branding | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [branches, setBranches] = useState<string[]>(['main']);
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'anthropic'>('openai');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [useStreaming, setUseStreaming] = useState(true);
 
   const client = new RestClient(config.baseUrl, config.apiKey);
 
   useEffect(() => {
-    loadMessages();
+    loadItems();
     loadBranding();
     loadBranches();
   }, [conversationId, currentBranch]);
 
-  const loadMessages = async () => {
+  const loadItems = async () => {
     try {
       setLoading(true);
       setError(null);
-      const msgs = await client.getMessages(conversationId, config.format, currentBranch !== 'main' ? currentBranch : undefined);
-      setMessages(msgs);
+      const conversationItems = await client.getConversationItems(conversationId, config.format, currentBranch !== 'main' ? currentBranch : undefined);
+      setItems(conversationItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+      setError(err instanceof Error ? err.message : 'Failed to load conversation');
     } finally {
       setLoading(false);
     }
@@ -73,14 +77,15 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       setStreaming(true);
 
       // Optimistically add user message to UI immediately
-      const optimisticUserMessage: Message = {
-        sequenceNumber: messages.length + 1,
+      const optimisticUserMessage: Message & { itemType: 'message' } = {
+        sequenceNumber: items.length + 1,
         role: 'user',
         content,
         timestamp: new Date().toISOString(),
         commitHash: '',
+        itemType: 'message',
       };
-      setMessages([...messages, optimisticUserMessage]);
+      setItems([...items, optimisticUserMessage]);
 
       if (files && files.length > 0) {
         for (const file of files) {
@@ -88,46 +93,73 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         }
       }
 
-      // Add placeholder for assistant message
-      const assistantMessage: Message = {
-        sequenceNumber: messages.length + 2,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-        commitHash: '',
-      };
-      setMessages([...messages, optimisticUserMessage, assistantMessage]);
+      if (useStreaming) {
+        // Add placeholder for assistant message
+        const assistantMessage: Message & { itemType: 'message' } = {
+          sequenceNumber: items.length + 2,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          commitHash: '',
+          itemType: 'message',
+        };
+        setItems([...items, optimisticUserMessage, assistantMessage]);
 
-      // Stream the response
-      let streamedContent = '';
-      for await (const chunk of client.sendMessageStream(
-        conversationId,
-        'user',
-        content,
-        currentBranch !== 'main' ? currentBranch : undefined
-      )) {
-        if (chunk.type === 'delta' && chunk.content) {
-          streamedContent += chunk.content;
-          // Update the assistant message with streamed content
-          setMessages((prevMessages) => {
-            const updated = [...prevMessages];
-            const lastMsg = updated[updated.length - 1];
-            if (lastMsg.role === 'assistant') {
-              lastMsg.content = streamedContent;
+        // Stream the response
+        let streamedContent = '';
+        for await (const chunk of client.sendMessageStream(
+          conversationId,
+          'user',
+          content,
+          currentBranch !== 'main' ? currentBranch : undefined,
+          selectedProvider,
+          selectedModel
+        )) {
+          if (chunk.type === 'delta' && chunk.content) {
+            streamedContent += chunk.content;
+            // Update the assistant message with streamed content
+            setItems((prevItems) => {
+              const updated = [...prevItems];
+              const lastItem = updated[updated.length - 1];
+              if (lastItem.itemType === 'message' && lastItem.role === 'assistant') {
+                lastItem.content = streamedContent;
+              }
+              return updated;
+            });
+          } else if (chunk.type === 'done') {
+            // Refresh to get final committed items with proper metadata
+            await loadItems();
+            // Notify parent that conversation was created (for first message)
+            if (items.length === 0) {
+              onConversationCreated?.();
             }
-            return updated;
-          });
-        } else if (chunk.type === 'done') {
-          // Refresh to get final committed messages with proper metadata
-          await loadMessages();
-        } else if (chunk.type === 'error') {
-          setError(chunk.message || 'Streaming failed');
+          } else if (chunk.type === 'error') {
+            setError(chunk.message || 'Streaming failed');
+          }
+        }
+      } else {
+        // Non-streaming mode - better for tool calls
+        await client.sendMessage(
+          conversationId,
+          'user',
+          content,
+          currentBranch !== 'main' ? currentBranch : undefined,
+          selectedProvider,
+          selectedModel
+        );
+
+        // Refresh to get all items including AI response and tool calls
+        await loadItems();
+
+        // Notify parent that conversation was created (for first message)
+        if (items.length === 0) {
+          onConversationCreated?.();
         }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
-      // Reload messages to remove optimistic updates on error
-      await loadMessages();
+      // Reload items to remove optimistic updates on error
+      await loadItems();
     } finally {
       setStreaming(false);
     }
@@ -213,7 +245,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             )}
           </div>
           <div className="branch-stats">
-            {messages.length} message{messages.length !== 1 ? 's' : ''}
+            {items.length} item{items.length !== 1 ? 's' : ''}
             {currentBranch !== 'main' && <span className="branch-indicator">📍 viewing branch</span>}
           </div>
         </div>
@@ -225,10 +257,47 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         {activeTab === 'messages' && (
           <>
             <MessageList
-              messages={messages}
+              items={items}
               streaming={streaming}
               onBranchFromMessage={handleBranchFromMessage}
             />
+            <div className="ai-controls">
+              <label>
+                Provider:
+                <select value={selectedProvider} onChange={(e) => {
+                  const newProvider = e.target.value as 'openai' | 'anthropic';
+                  setSelectedProvider(newProvider);
+                  setSelectedModel(newProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+                }}>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
+              <label>
+                Model:
+                {selectedProvider === 'openai' ? (
+                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  </select>
+                ) : (
+                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                    <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                    <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                  </select>
+                )}
+              </label>
+              <label className="streaming-toggle">
+                <input
+                  type="checkbox"
+                  checked={useStreaming}
+                  onChange={(e) => setUseStreaming(e.target.checked)}
+                />
+                Streaming {!useStreaming && '(enables tool calls)'}
+              </label>
+            </div>
             <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
           </>
         )}

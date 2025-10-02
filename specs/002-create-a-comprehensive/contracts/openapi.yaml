@@ -309,6 +309,138 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /chat/{chatId}/completion:
+    post:
+      summary: Generate AI completion with tool support
+      description: |
+        Trigger AI response generation for a conversation with full tool calling support.
+
+        This endpoint:
+        1. Retrieves conversation history
+        2. Calls the AI provider with tool definitions
+        3. Stores assistant response as a message
+        4. If tools are requested, executes them and stores tool calls/results
+        5. Generates final response with tool results
+
+        Note: This is a non-streaming endpoint. Tool calling is not supported in streaming mode.
+      tags: [Messages]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum: [openai, anthropic]
+                  description: AI provider to use (defaults to system default)
+                model:
+                  type: string
+                  description: Model identifier (defaults to provider default)
+                  example: gpt-4
+                branch:
+                  type: string
+                  description: Branch to append messages to (defaults to 'main')
+                  default: main
+      responses:
+        '200':
+          description: Completion generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assistantMessage]
+                properties:
+                  assistantMessage:
+                    type: object
+                    required: [sequenceNumber, commitHash, content]
+                    properties:
+                      sequenceNumber:
+                        type: integer
+                      commitHash:
+                        type: string
+                        pattern: '^[a-f0-9]{40}$'
+                      content:
+                        type: string
+                      aiProvider:
+                        type: string
+                      model:
+                        type: string
+                  toolCalls:
+                    type: array
+                    description: Tool calls made during completion (if any)
+                    items:
+                      type: object
+                      required: [sequenceNumber, commitHash, toolName, parameters]
+                      properties:
+                        sequenceNumber:
+                          type: integer
+                        commitHash:
+                          type: string
+                          pattern: '^[a-f0-9]{40}$'
+                        toolName:
+                          type: string
+                        parameters:
+                          type: object
+                          additionalProperties: true
+                  toolResults:
+                    type: array
+                    description: Tool execution results (if any)
+                    items:
+                      type: object
+                      required: [sequenceNumber, commitHash, toolCallRef, status, result]
+                      properties:
+                        sequenceNumber:
+                          type: integer
+                        commitHash:
+                          type: string
+                          pattern: '^[a-f0-9]{40}$'
+                        toolCallRef:
+                          type: integer
+                        status:
+                          type: string
+                          enum: [success, failure]
+                        result:
+                          type: object
+                          additionalProperties: true
+                  finalResponse:
+                    type: object
+                    description: Final assistant response after tool execution (if tools were used)
+                    required: [sequenceNumber, commitHash, content]
+                    properties:
+                      sequenceNumber:
+                        type: integer
+                      commitHash:
+                        type: string
+                        pattern: '^[a-f0-9]{40}$'
+                      content:
+                        type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: AI provider error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "provider_error"
+                  message: "Failed to generate completion"
+        '503':
+          description: AI provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "service_unavailable"
+                  message: "AI provider is temporarily unavailable"
+
   /conversation/{conversationId}:
     get:
       summary: Get full conversation details

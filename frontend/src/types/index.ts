@@ -16,6 +16,12 @@ export interface Message {
   }>;
 }
 
+// Union type for conversation items (messages, tool calls, tool results)
+export type ConversationItem =
+  | (Message & { itemType: 'message' })
+  | (ToolCall & { itemType: 'tool_call' })
+  | (ToolResult & { itemType: 'tool_result' });
+
 export interface Conversation {
   id: string;
   organizationId: string;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ApiProvider } from './context/ApiContext';
 import { ConversationList } from './components/ConversationList';
 import { ConversationView } from './components/ConversationView';
@@ -8,6 +8,7 @@ import { Header } from './components/Header';
 export default function App() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const conversationListRef = useRef<{ refresh: () => void }>(null);
 
   return (
     <ApiProvider>
@@ -25,6 +26,7 @@ export default function App() {
         <div className="app-layout">
           <aside className="sidebar">
             <ConversationList
+              ref={conversationListRef}
               selectedId={selectedConversationId}
               onSelect={setSelectedConversationId}
             />
@@ -32,7 +34,10 @@ export default function App() {
 
           <main className="main-content">
             {selectedConversationId ? (
-              <ConversationView conversationId={selectedConversationId} />
+              <ConversationView
+                conversationId={selectedConversationId}
+                onConversationCreated={() => conversationListRef.current?.refresh()}
+              />
             ) : (
               <div className="empty-state">
                 <h2>Welcome to Soapy</h2>

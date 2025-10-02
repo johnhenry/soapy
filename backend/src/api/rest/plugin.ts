@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { gitStorage } from '../../lib/git-storage/index.js';
-import { commitMessage, getMessages } from '../../lib/git-storage/message.js';
+import { commitMessage, getMessages, getConversationItems, commitToolCall, commitToolResult } from '../../lib/git-storage/message.js';
 import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
 import { aiOrchestrator } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
@@ -46,7 +46,13 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
   // POST /v1/chat/:id/messages - Submit message
   fastify.post('/v1/chat/:id/messages', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { role: MessageRole; content: string; branch?: string };
+    const body = request.body as {
+      role: MessageRole;
+      content: string;
+      branch?: string;
+      provider?: 'openai' | 'anthropic';
+      model?: string;
+    };
 
     // Create conversation if it doesn't exist
     if (!(await gitStorage.conversationExists(id))) {
@@ -72,17 +78,76 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       // If user message, generate AI response
       if (body.role === 'user') {
         try {
-          // Try OpenAI first, fallback to Anthropic
+          // Use requested provider or fall back to available ones
           let aiResponse;
-          let provider = 'openai';
-          let model = 'gpt-4o-mini';
+          let provider = body.provider || 'openai';
+          let model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
 
-          if (aiOrchestrator.hasProvider('openai')) {
-            aiResponse = await aiOrchestrator.generate('openai', body.content);
-          } else if (aiOrchestrator.hasProvider('anthropic')) {
-            provider = 'anthropic';
-            model = 'claude-3-5-sonnet-20241022';
-            aiResponse = await aiOrchestrator.generate('anthropic', body.content);
+          // Try requested provider first
+          if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
+            // Add example tools for demonstration
+            const tools = [
+              {
+                name: 'get_current_time',
+                description: 'Get the current time in a specific timezone. ALWAYS use this tool when asked about the current time.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    timezone: {
+                      type: 'string',
+                      description: 'The timezone, e.g. America/Los_Angeles, America/New_York, Europe/London',
+                    },
+                  },
+                  required: ['timezone'],
+                },
+              },
+              {
+                name: 'search_database',
+                description: 'Search a database for information. Use this when asked to look up data.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    query: {
+                      type: 'string',
+                      description: 'The search query',
+                    },
+                    limit: {
+                      type: 'number',
+                      description: 'Maximum number of results',
+                    },
+                  },
+                  required: ['query'],
+                },
+              },
+            ];
+            aiResponse = await aiOrchestrator.generate('openai', body.content, { tools, model });
+            console.log('AI Response:', JSON.stringify(aiResponse, null, 2));
+          } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
+            // Anthropic with tools
+            const tools = [
+              {
+                name: 'get_weather',
+                description: 'Get the current weather for a specific location. This tool provides real-time weather data including temperature, conditions, and forecast.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    location: {
+                      type: 'string',
+                      description: 'The city and state or country, e.g. "San Francisco, CA" or "London, UK"',
+                    },
+                    unit: {
+                      type: 'string',
+                      enum: ['celsius', 'fahrenheit'],
+                      description: 'Temperature unit to use',
+                    },
+                  },
+                  required: ['location'],
+                },
+              },
+            ];
+            console.log('Sending to Anthropic with tools:', JSON.stringify(tools, null, 2));
+            aiResponse = await aiOrchestrator.generate('anthropic', body.content, { tools, model });
+            console.log('Anthropic response received:', JSON.stringify(aiResponse, null, 2));
           } else {
             // No AI provider available, just return user message stored
             return reply.code(201).send({
@@ -100,6 +165,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             timestamp: new Date(),
             aiProvider: provider,
             model: aiResponse.model || model,
+            toolCalls: aiResponse.toolCalls,
           }, body.branch);
         } catch (error) {
           console.error('AI generation error:', error);
@@ -126,18 +192,293 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // POST /v1/chat/:id/completion - Get AI completion (non-streaming, supports tools)
+  fastify.post('/v1/chat/:id/completion', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      provider?: 'openai' | 'anthropic';
+      model?: string;
+      branch?: string;
+    };
+
+    if (!(await gitStorage.conversationExists(id))) {
+      reply.code(404).send({ error: 'Conversation not found' });
+      return;
+    }
+
+    try {
+      const provider = body.provider || 'openai';
+      const model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+
+      // Get conversation messages
+      const messages = await getMessages(id, body.branch);
+
+      if (messages.length === 0) {
+        reply.code(400).send({ error: 'No messages in conversation' });
+        return;
+      }
+
+      // Get available tools
+      const tools = [
+        {
+          name: 'get_weather',
+          description: 'Get the current weather for a location',
+          parameters: {
+            type: 'object',
+            properties: {
+              location: {
+                type: 'string',
+                description: 'The city and country, e.g. "Paris, France"'
+              },
+              unit: {
+                type: 'string',
+                enum: ['celsius', 'fahrenheit'],
+                description: 'The temperature unit'
+              }
+            },
+            required: ['location']
+          }
+        }
+      ];
+
+      let assistantContent = '';
+      let toolCalls: any[] = [];
+      let usedModel = model;
+
+      // Call AI provider with tool support
+      if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
+        const OpenAI = (await import('openai')).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        const completion = await openai.chat.completions.create({
+          model,
+          messages: messages.map(m => ({ role: m.role as any, content: m.content })),
+          tools: tools.map(t => ({
+            type: 'function' as const,
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters
+            }
+          })),
+          tool_choice: 'auto'
+        });
+
+        const choice = completion.choices[0];
+        assistantContent = choice.message.content || '';
+        toolCalls = choice.message.tool_calls?.map((tc: any) => ({
+          name: tc.function.name,
+          parameters: JSON.parse(tc.function.arguments)
+        })) || [];
+        usedModel = completion.model;
+      } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+        const response = await anthropic.messages.create({
+          model,
+          max_tokens: 1000,
+          messages: messages.map(m => ({ role: m.role as any, content: m.content })),
+          tools: tools.map(t => ({
+            name: t.name,
+            description: t.description,
+            input_schema: t.parameters as any
+          }))
+        });
+
+        assistantContent = response.content.find((c: any) => c.type === 'text')?.text || '';
+        toolCalls = response.content.filter((c: any) => c.type === 'tool_use').map((tc: any) => ({
+          name: tc.name,
+          parameters: tc.input
+        }));
+        usedModel = response.model;
+      } else {
+        reply.code(503).send({ error: 'AI provider not available' });
+        return;
+      }
+
+      // Store assistant message
+      const assistantResult = await commitMessage(id, {
+        role: 'assistant',
+        content: assistantContent,
+        timestamp: new Date(),
+        aiProvider: provider,
+        model: usedModel,
+      }, body.branch);
+
+      const results: any = {
+        sequenceNumber: assistantResult.sequenceNumber,
+        commitHash: assistantResult.commitHash,
+        content: assistantContent,
+        toolCalls: []
+      };
+
+      // If there are tool calls, store them and execute
+      if (toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
+          // Store tool call
+          const toolCallResult = await commitToolCall(id, {
+            toolName: toolCall.name,
+            parameters: toolCall.parameters,
+            requestedAt: new Date(),
+          }, body.branch);
+
+          // Execute tool (mock for now)
+          let toolResult: any = {};
+          let status: 'success' | 'failure' = 'success';
+
+          if (toolCall.name === 'get_weather') {
+            toolResult = {
+              temperature: Math.floor(Math.random() * 30) + 5,
+              condition: ['Sunny', 'Cloudy', 'Partly cloudy', 'Rainy'][Math.floor(Math.random() * 4)],
+              humidity: Math.floor(Math.random() * 40) + 40,
+              windSpeed: Math.floor(Math.random() * 20) + 5
+            };
+          }
+
+          // Store tool result
+          const toolResultData = await commitToolResult(id, {
+            toolCallRef: toolCallResult.sequenceNumber,
+            result: toolResult,
+            executedAt: new Date(),
+            status,
+            retryCount: 0,
+          }, body.branch);
+
+          results.toolCalls.push({
+            sequenceNumber: toolCallResult.sequenceNumber,
+            commitHash: toolCallResult.commitHash,
+            toolName: toolCall.name,
+            parameters: toolCall.parameters,
+            result: {
+              sequenceNumber: toolResultData.sequenceNumber,
+              commitHash: toolResultData.commitHash,
+              status,
+              data: toolResult
+            }
+          });
+        }
+
+        // Get final response with tool results
+        const updatedMessages = await getMessages(id, body.branch);
+        const toolResultsFormatted = results.toolCalls.map((tc: any) => ({
+          toolName: tc.toolName,
+          result: tc.result.data
+        }));
+
+        let finalResponse = '';
+        if (provider === 'openai') {
+          const OpenAI = (await import('openai')).default;
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+          const completion = await openai.chat.completions.create({
+            model: usedModel,
+            messages: [
+              ...updatedMessages.map(m => ({ role: m.role as any, content: m.content })),
+              { role: 'assistant' as const, content: `Tool results: ${JSON.stringify(toolResultsFormatted)}` }
+            ]
+          });
+
+          finalResponse = completion.choices[0].message.content || '';
+        } else if (provider === 'anthropic') {
+          const Anthropic = (await import('@anthropic-ai/sdk')).default;
+          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+          const response = await anthropic.messages.create({
+            model: usedModel,
+            max_tokens: 1000,
+            messages: [
+              ...updatedMessages.map(m => ({ role: m.role as any, content: m.content })),
+              { role: 'assistant' as const, content: `Tool results: ${JSON.stringify(toolResultsFormatted)}` }
+            ]
+          });
+
+          finalResponse = response.content.find((c: any) => c.type === 'text')?.text || '';
+        }
+
+        // Store final assistant response
+        const finalResult = await commitMessage(id, {
+          role: 'assistant',
+          content: finalResponse,
+          timestamp: new Date(),
+          aiProvider: provider,
+          model: usedModel,
+        }, body.branch);
+
+        results.finalResponse = {
+          sequenceNumber: finalResult.sequenceNumber,
+          commitHash: finalResult.commitHash,
+          content: finalResponse
+        };
+      }
+
+      // Return to main branch if we were on a different branch
+      if (body.branch) {
+        const git = await import('isomorphic-git');
+        const fs = await import('fs');
+        const { join } = await import('path');
+        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+        const dir = join(CONVERSATIONS_DIR, id);
+        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
+      }
+
+      reply.send(results);
+    } catch (error) {
+      console.error('Completion error:', error);
+      reply.code(500).send({ error: 'AI completion failed' });
+    }
+  });
+
   // GET /v1/chat/:id - Get conversation
   fastify.get('/v1/chat/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { format, branch } = request.query as { format?: string; branch?: string };
+    const { format, branch, includeTools } = request.query as { format?: string; branch?: string; includeTools?: string };
 
-    // Get messages from Git storage
-    let messages: Awaited<ReturnType<typeof getMessages>> = [];
-    if (await gitStorage.conversationExists(id)) {
-      messages = await getMessages(id, branch);
+    if (!(await gitStorage.conversationExists(id))) {
+      reply.send({
+        conversationId: id,
+        format: format || 'openai',
+        messages: [],
+      });
+      return;
     }
 
-    // Format messages - include all metadata regardless of format
+    // If includeTools is true, return conversation items (messages + tool calls + tool results)
+    if (includeTools === 'true') {
+      const items = await getConversationItems(id, branch);
+
+      const formattedItems = items.map((item) => ({
+        sequenceNumber: item.sequenceNumber,
+        itemType: item.itemType,
+        timestamp: ('timestamp' in item ? item.timestamp :
+                   'requestedAt' in item ? item.requestedAt :
+                   item.executedAt).toISOString(),
+        commitHash: item.commitHash,
+        ...('role' in item && { role: item.role }),
+        ...('content' in item && { content: item.content }),
+        ...('aiProvider' in item && { aiProvider: item.aiProvider }),
+        ...('model' in item && { model: item.model }),
+        ...('toolName' in item && { toolName: item.toolName }),
+        ...('parameters' in item && { parameters: item.parameters }),
+        ...('requestedAt' in item && { requestedAt: item.requestedAt.toISOString() }),
+        ...('toolCallRef' in item && { toolCallRef: item.toolCallRef }),
+        ...('result' in item && { result: item.result }),
+        ...('status' in item && { status: item.status }),
+        ...('executedAt' in item && { executedAt: item.executedAt.toISOString() }),
+        ...('retryCount' in item && { retryCount: item.retryCount }),
+      }));
+
+      reply.send({
+        conversationId: id,
+        format: format || 'openai',
+        items: formattedItems,
+      });
+      return;
+    }
+
+    // Default: return messages only (backward compatibility)
+    const messages = await getMessages(id, branch);
+
     const formattedMessages = messages.map((msg) => ({
       sequenceNumber: msg.sequenceNumber,
       role: msg.role,
@@ -158,7 +499,13 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
   // POST /v1/chat/:id/messages/stream - Submit message with streaming response
   fastify.post('/v1/chat/:id/messages/stream', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { role: MessageRole; content: string; branch?: string };
+    const body = request.body as {
+      role: MessageRole;
+      content: string;
+      branch?: string;
+      provider?: 'openai' | 'anthropic';
+      model?: string;
+    };
 
     // Create conversation if it doesn't exist
     if (!(await gitStorage.conversationExists(id))) {
@@ -194,13 +541,16 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       // If user message, generate and stream AI response
       if (body.role === 'user') {
         try {
-          let provider = 'openai';
+          let provider = body.provider || 'openai';
+          let model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
           let fullResponse = '';
 
-          if (aiOrchestrator.hasProvider('openai')) {
+          // Note: Streaming with tools is not currently supported
+          // Tools require non-streaming API to handle tool use properly
+          if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
             const aiProvider = aiOrchestrator.getProvider('openai');
             if (aiProvider) {
-              for await (const chunk of aiProvider.stream(body.content)) {
+              for await (const chunk of aiProvider.stream(body.content, { model })) {
                 fullResponse += chunk.delta;
                 reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
 
@@ -209,11 +559,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
                 }
               }
             }
-          } else if (aiOrchestrator.hasProvider('anthropic')) {
-            provider = 'anthropic';
+          } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
             const aiProvider = aiOrchestrator.getProvider('anthropic');
             if (aiProvider) {
-              for await (const chunk of aiProvider.stream(body.content)) {
+              for await (const chunk of aiProvider.stream(body.content, { model })) {
                 fullResponse += chunk.delta;
                 reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
 
@@ -234,7 +583,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             content: fullResponse,
             timestamp: new Date(),
             aiProvider: provider,
-            model: provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022',
+            model,
           }, body.branch);
 
           reply.raw.write(`data: ${JSON.stringify({ type: 'done', sequenceNumber: assistantResult.sequenceNumber, commitHash: assistantResult.commitHash })}\n\n`);

@@ -2,8 +2,16 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Message } from '../../models/message.js';
+import type { ToolCall } from '../../models/tool-call.js';
+import type { ToolResult } from '../../models/tool-result.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+
+// Union type for conversation items that can be branched from
+export type ConversationItem =
+  | (Message & { itemType: 'message' })
+  | (ToolCall & { itemType: 'tool_call' })
+  | (ToolResult & { itemType: 'tool_result' });
 
 export interface CommitMessageResult {
   commitHash: string;
@@ -31,7 +39,7 @@ export async function commitMessage(
   const filename = `${String(sequenceNumber).padStart(4, '0')}-${message.role}.md`;
   const filepath = join(dir, filename);
 
-  // Create message content with frontmatter
+  // Create message content with frontmatter (without toolCalls - those go in separate files)
   const frontmatter = [
     '---',
     `role: ${message.role}`,
@@ -59,6 +67,17 @@ export async function commitMessage(
     },
   });
 
+  // If message has tool calls, commit them as separate files
+  if (message.toolCalls && message.toolCalls.length > 0) {
+    for (const toolCall of message.toolCalls) {
+      await commitToolCall(conversationId, {
+        toolName: toolCall.name,
+        parameters: toolCall.arguments,
+        requestedAt: new Date(),
+      });
+    }
+  }
+
   // Stay on the branch if we checked it out (don't restore to original)
   // This allows subsequent commits in the same operation to use the same branch
 
@@ -69,10 +88,106 @@ export async function commitMessage(
   };
 }
 
-export async function getMessages(
+export async function commitToolCall(
+  conversationId: string,
+  toolCall: Omit<ToolCall, 'sequenceNumber' | 'commitHash'>
+): Promise<CommitMessageResult> {
+  const dir = join(CONVERSATIONS_DIR, conversationId);
+
+  // Get next sequence number
+  const sequenceNumber = await getNextSequenceNumber(dir);
+
+  // Format filename: NNNN-tool_call.md
+  const filename = `${String(sequenceNumber).padStart(4, '0')}-tool_call.md`;
+  const filepath = join(dir, filename);
+
+  // Create markdown content with YAML frontmatter
+  const frontmatter = [
+    '---',
+    `toolName: ${toolCall.toolName}`,
+    `requestedAt: ${toolCall.requestedAt.toISOString()}`,
+    `parameters:`,
+    ...JSON.stringify(toolCall.parameters, null, 2).split('\n').map(line => `  ${line}`),
+    '---',
+    '',
+    `Calling tool: ${toolCall.toolName}`,
+  ].join('\n');
+
+  // Write file
+  await fs.promises.writeFile(filepath, frontmatter, 'utf-8');
+
+  // Git add and commit
+  await git.add({ fs, dir, filepath: filename });
+  const commitHash = await git.commit({
+    fs,
+    dir,
+    message: `Add tool call ${sequenceNumber}: ${toolCall.toolName}`,
+    author: {
+      name: 'Soapy System',
+      email: 'system@soapy.local',
+    },
+  });
+
+  return {
+    commitHash,
+    sequenceNumber,
+    timestamp: toolCall.requestedAt,
+  };
+}
+
+export async function commitToolResult(
+  conversationId: string,
+  toolResult: Omit<ToolResult, 'sequenceNumber' | 'commitHash'>
+): Promise<CommitMessageResult> {
+  const dir = join(CONVERSATIONS_DIR, conversationId);
+
+  // Get next sequence number
+  const sequenceNumber = await getNextSequenceNumber(dir);
+
+  // Format filename: NNNN-tool_result.md
+  const filename = `${String(sequenceNumber).padStart(4, '0')}-tool_result.md`;
+  const filepath = join(dir, filename);
+
+  // Create markdown content with YAML frontmatter
+  const frontmatter = [
+    '---',
+    `toolCallRef: ${toolResult.toolCallRef}`,
+    `status: ${toolResult.status}`,
+    `executedAt: ${toolResult.executedAt.toISOString()}`,
+    `retryCount: ${toolResult.retryCount}`,
+    `result:`,
+    ...JSON.stringify(toolResult.result, null, 2).split('\n').map(line => `  ${line}`),
+    '---',
+    '',
+    `Tool execution ${toolResult.status}`,
+  ].join('\n');
+
+  // Write file
+  await fs.promises.writeFile(filepath, frontmatter, 'utf-8');
+
+  // Git add and commit
+  await git.add({ fs, dir, filepath: filename });
+  const commitHash = await git.commit({
+    fs,
+    dir,
+    message: `Add tool result ${sequenceNumber} (ref: ${toolResult.toolCallRef}) - ${toolResult.status}`,
+    author: {
+      name: 'Soapy System',
+      email: 'system@soapy.local',
+    },
+  });
+
+  return {
+    commitHash,
+    sequenceNumber,
+    timestamp: toolResult.executedAt,
+  };
+}
+
+export async function getConversationItems(
   conversationId: string,
   branch?: string
-): Promise<Message[]> {
+): Promise<ConversationItem[]> {
   const dir = join(CONVERSATIONS_DIR, conversationId);
 
   // Get current branch so we can restore it
@@ -83,40 +198,91 @@ export async function getMessages(
     await git.checkout({ fs, dir, ref: branch });
   }
 
-  // Read all message files
+  // Read all files
   const files = await fs.promises.readdir(dir);
+
+  // Separate different file types
   const messageFiles = files
     .filter((f: string) => /^\d{4}-(user|assistant|system|tool)\.md$/.test(f))
     .sort();
 
-  const messages: Message[] = [];
+  const toolCallFiles = files
+    .filter((f: string) => /^\d{4}-tool_call\.md$/.test(f))
+    .sort();
 
+  const toolResultFiles = files
+    .filter((f: string) => /^\d{4}-tool_result\.md$/.test(f))
+    .sort();
+
+  // Parse all items and collect them with their sequence numbers
+  const items: ConversationItem[] = [];
+
+  // Parse messages
   for (const file of messageFiles) {
     const content = await fs.promises.readFile(join(dir, file), 'utf-8');
     const message = parseMessageFile(content, file);
     if (message) {
-      messages.push(message);
+      items.push({ ...message, itemType: 'message' });
     }
   }
+
+  // Parse tool calls as separate items
+  for (const file of toolCallFiles) {
+    const content = await fs.promises.readFile(join(dir, file), 'utf-8');
+    const toolCall = parseToolCallFile(content, file);
+    if (toolCall) {
+      items.push({ ...toolCall, itemType: 'tool_call' });
+    }
+  }
+
+  // Parse tool results as separate items
+  for (const file of toolResultFiles) {
+    const content = await fs.promises.readFile(join(dir, file), 'utf-8');
+    const toolResult = parseToolResultFile(content, file);
+    if (toolResult) {
+      items.push({ ...toolResult, itemType: 'tool_result' });
+    }
+  }
+
+  // Sort all items by sequence number
+  items.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
   // Restore original branch
   if (branch && branch !== originalBranch && originalBranch) {
     await git.checkout({ fs, dir, ref: originalBranch });
   }
 
-  return messages;
+  return items;
+}
+
+export async function getMessages(
+  conversationId: string,
+  branch?: string
+): Promise<Message[]> {
+  const items = await getConversationItems(conversationId, branch);
+
+  // Filter to only messages for backward compatibility
+  const messages = items.filter((item): item is Message & { itemType: 'message' } =>
+    item.itemType === 'message'
+  );
+
+  // Remove itemType from returned messages
+  return messages.map(({ itemType, ...message }) => message);
 }
 
 async function getNextSequenceNumber(dir: string): Promise<number> {
   try {
     const files = await fs.promises.readdir(dir);
-    const messageFiles = files.filter((f: string) => /^\d{4}-(user|assistant|system|tool)\.md$/.test(f));
+    // Match all .md files with sequence numbers
+    const sequencedFiles = files.filter((f: string) =>
+      /^\d{4}-(user|assistant|system|tool|tool_call|tool_result)\.md$/.test(f)
+    );
 
-    if (messageFiles.length === 0) {
+    if (sequencedFiles.length === 0) {
       return 1;
     }
 
-    const numbers = messageFiles.map((f: string) => parseInt(f.slice(0, 4), 10));
+    const numbers = sequencedFiles.map((f: string) => parseInt(f.slice(0, 4), 10));
     return Math.max(...numbers) + 1;
   } catch {
     return 1;
@@ -126,7 +292,7 @@ async function getNextSequenceNumber(dir: string): Promise<number> {
 function parseMessageFile(content: string, filename: string): Message | null {
   try {
     const sequenceNumber = parseInt(filename.slice(0, 4), 10);
-    
+
     // Parse frontmatter
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
     if (!frontmatterMatch) {
@@ -151,6 +317,144 @@ function parseMessageFile(content: string, filename: string): Message | null {
       aiProvider: frontmatter.aiProvider,
       model: frontmatter.model,
       commitHash: '', // Will be populated from Git log if needed
+      // Note: toolCalls are no longer read from frontmatter, they come from separate files
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseToolCallFile(content: string, filename: string): ToolCall | null {
+  try {
+    const sequenceNumber = parseInt(filename.slice(0, 4), 10);
+
+    // Parse frontmatter
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (!frontmatterMatch) {
+      return null;
+    }
+
+    const [, frontmatterText] = frontmatterMatch;
+    const frontmatter: Record<string, any> = {};
+    let currentKey: string | null = null;
+    let jsonBuffer = '';
+
+    frontmatterText.split('\n').forEach((line) => {
+      // Check if this is a key line (e.g., "toolName: get_weather")
+      if (line.match(/^[a-zA-Z_]+:/)) {
+        // Save previous JSON buffer if any
+        if (currentKey && jsonBuffer) {
+          try {
+            frontmatter[currentKey] = JSON.parse(jsonBuffer);
+          } catch {
+            frontmatter[currentKey] = jsonBuffer.trim();
+          }
+          jsonBuffer = '';
+        }
+
+        const [key, ...valueParts] = line.split(':');
+        currentKey = key.trim();
+        const value = valueParts.join(':').trim();
+
+        if (value) {
+          frontmatter[currentKey] = value;
+          currentKey = null;
+        } else {
+          jsonBuffer = '';
+        }
+      } else if (currentKey) {
+        // This is a continuation line (JSON object)
+        jsonBuffer += line + '\n';
+      }
+    });
+
+    // Save final JSON buffer if any
+    if (currentKey && jsonBuffer) {
+      try {
+        frontmatter[currentKey] = JSON.parse(jsonBuffer);
+      } catch {
+        frontmatter[currentKey] = jsonBuffer.trim();
+      }
+    }
+
+    return {
+      sequenceNumber,
+      toolName: frontmatter.toolName,
+      parameters: frontmatter.parameters || {},
+      requestedAt: new Date(frontmatter.requestedAt),
+      commitHash: '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseToolResultFile(content: string, filename: string): ToolResult | null {
+  try {
+    const sequenceNumber = parseInt(filename.slice(0, 4), 10);
+
+    // Parse frontmatter
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (!frontmatterMatch) {
+      return null;
+    }
+
+    const [, frontmatterText] = frontmatterMatch;
+    const frontmatter: Record<string, any> = {};
+    let currentKey: string | null = null;
+    let jsonBuffer = '';
+
+    frontmatterText.split('\n').forEach((line) => {
+      // Check if this is a key line
+      if (line.match(/^[a-zA-Z_]+:/)) {
+        // Save previous JSON buffer if any
+        if (currentKey && jsonBuffer) {
+          try {
+            frontmatter[currentKey] = JSON.parse(jsonBuffer);
+          } catch {
+            frontmatter[currentKey] = jsonBuffer.trim();
+          }
+          jsonBuffer = '';
+        }
+
+        const [key, ...valueParts] = line.split(':');
+        currentKey = key.trim();
+        const value = valueParts.join(':').trim();
+
+        if (value) {
+          // Try to parse as number if possible
+          if (!isNaN(Number(value))) {
+            frontmatter[currentKey] = Number(value);
+          } else {
+            frontmatter[currentKey] = value;
+          }
+          currentKey = null;
+        } else {
+          jsonBuffer = '';
+        }
+      } else if (currentKey) {
+        // This is a continuation line (JSON object)
+        jsonBuffer += line + '\n';
+      }
+    });
+
+    // Save final JSON buffer if any
+    if (currentKey && jsonBuffer) {
+      try {
+        frontmatter[currentKey] = JSON.parse(jsonBuffer);
+      } catch {
+        frontmatter[currentKey] = jsonBuffer.trim();
+      }
+    }
+
+    return {
+      sequenceNumber,
+      toolCallRef: frontmatter.toolCallRef,
+      result: frontmatter.result || {},
+      executedAt: new Date(frontmatter.executedAt),
+      status: frontmatter.status,
+      retryCount: frontmatter.retryCount || 0,
+      commitHash: '',
     };
   } catch {
     return null;

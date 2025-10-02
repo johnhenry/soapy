@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useApi } from '../context/ApiContext';
 import { RestClient } from '../services/RestClient';
 import './ConversationList.css';
@@ -15,7 +15,8 @@ interface Conversation {
   updatedAt: string;
 }
 
-export function ConversationList({ selectedId, onSelect, onConversationCreated }: ConversationListProps) {
+const ConversationListComponent = forwardRef<{ refresh: () => void }, ConversationListProps>(
+  ({ selectedId, onSelect, onConversationCreated }, ref) => {
   const { config } = useApi();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,11 @@ export function ConversationList({ selectedId, onSelect, onConversationCreated }
       setLoading(false);
     }
   };
+
+  // Expose refresh method to parent
+  useImperativeHandle(ref, () => ({
+    refresh: loadConversations,
+  }));
 
   const handleNewConversation = async () => {
     const newId = `conv-${Date.now()}`;
@@ -143,4 +149,8 @@ export function ConversationList({ selectedId, onSelect, onConversationCreated }
       )}
     </div>
   );
-}
+});
+
+ConversationListComponent.displayName = 'ConversationList';
+
+export const ConversationList = ConversationListComponent;

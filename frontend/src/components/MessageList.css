@@ -257,3 +257,95 @@
 .message-user .tool-call-args {
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* Tool Call Item (standalone) */
+.message-tool-call {
+  align-self: flex-start;
+  background: var(--bg-secondary);
+  border-left: 3px solid #f59e0b;
+  max-width: 70%;
+}
+
+.message-tool-call .message-role {
+  color: #f59e0b;
+}
+
+.tool-call-content {
+  margin-top: 0.5rem;
+}
+
+.tool-call-content .tool-call-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-bottom: 0.5rem;
+}
+
+.tool-call-content .tool-call-args {
+  font-size: 0.875rem;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Tool Result Item (standalone) */
+.message-tool-result {
+  align-self: flex-start;
+  background: var(--bg-secondary);
+  border-left: 3px solid #10b981;
+  max-width: 70%;
+}
+
+.message-tool-result-failure {
+  border-left-color: #ef4444;
+}
+
+.message-tool-result .message-role {
+  color: #10b981;
+}
+
+.message-tool-result-failure .message-role {
+  color: #ef4444;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-failure {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tool-result-content {
+  margin-top: 0.5rem;
+}
+
+.tool-result-data {
+  font-size: 0.875rem;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

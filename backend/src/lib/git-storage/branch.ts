@@ -17,24 +17,48 @@ export async function createBranch(
   // This allows branching from any branch, not just main
   const commits = await git.log({ fs, dir, depth: 100 });
 
-  // Find the commit for the specified message number
-  // Message commits have format "Add message N: role"
+  // Find the commit for the specified sequence number
+  // Commit patterns:
+  // - Messages: "Add message N: role"
+  // - Tool calls: "Add tool call N: toolName"
+  // - Tool results: "Add tool result N (ref: M) - status"
   let targetCommit: string | null = null;
 
   for (const commit of commits) {
-    const match = commit.commit.message.match(/^Add message (\d+):/);
+    // Check for message
+    let match = commit.commit.message.match(/^Add message (\d+):/);
     if (match) {
-      const msgNum = parseInt(match[1], 10);
-      if (msgNum === fromMessageNumber) {
+      const seqNum = parseInt(match[1], 10);
+      if (seqNum === fromMessageNumber) {
+        targetCommit = commit.oid;
+        break;
+      }
+    }
+
+    // Check for tool call
+    match = commit.commit.message.match(/^Add tool call (\d+):/);
+    if (match) {
+      const seqNum = parseInt(match[1], 10);
+      if (seqNum === fromMessageNumber) {
+        targetCommit = commit.oid;
+        break;
+      }
+    }
+
+    // Check for tool result
+    match = commit.commit.message.match(/^Add tool result (\d+)/);
+    if (match) {
+      const seqNum = parseInt(match[1], 10);
+      if (seqNum === fromMessageNumber) {
         targetCommit = commit.oid;
         break;
       }
     }
   }
 
-  // If we didn't find the specific message, fail
+  // If we didn't find the specific item, fail
   if (!targetCommit) {
-    throw new Error(`Message ${fromMessageNumber} not found in commit history`);
+    throw new Error(`Item ${fromMessageNumber} not found in commit history`);
   }
 
   // Create Git branch at the target commit (doesn't require checkout)

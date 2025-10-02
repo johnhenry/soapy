@@ -1,4 +1,4 @@
-import type { Message, Conversation, Branch, ToolCall, ToolResult, Branding, FileAttachment, OutputFormat } from '../types';
+import type { Message, Conversation, Branch, ToolCall, ToolResult, Branding, FileAttachment, OutputFormat, ConversationItem } from '../types';
 
 export class RestClient {
   constructor(private baseUrl: string, private apiKey: string) {}
@@ -50,19 +50,46 @@ export class RestClient {
     return data.messages || [];
   }
 
-  async sendMessage(id: string, role: string, content: string, branch?: string): Promise<{ sequenceNumber: number; commitHash: string }> {
-    const response = await this.fetch(`/v1/chat/${id}/messages`, {
+  async getConversationItems(id: string, format: OutputFormat = 'openai', branch?: string): Promise<ConversationItem[]> {
+    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
+    const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}&includeTools=true`);
+    const data = await response.json();
+    return data.items || [];
+  }
+
+  async sendMessage(
+    id: string,
+    role: string,
+    content: string,
+    branch?: string,
+    provider?: 'openai' | 'anthropic',
+    model?: string
+  ): Promise<{ sequenceNumber: number; commitHash: string }> {
+    // First, post the user message
+    const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
       method: 'POST',
       body: JSON.stringify({ role, content, branch }),
     });
-    return response.json();
+    const userResult = await userResponse.json();
+
+    // If it's a user message, trigger AI completion
+    if (role === 'user') {
+      await this.fetch(`/v1/chat/${id}/completion`, {
+        method: 'POST',
+        body: JSON.stringify({ provider, model, branch }),
+      });
+    }
+
+    return userResult;
   }
 
   async *sendMessageStream(
     id: string,
     role: string,
     content: string,
-    branch?: string
+    branch?: string,
+    provider?: 'openai' | 'anthropic',
+    model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     const response = await fetch(`${this.baseUrl}/v1/chat/${id}/messages/stream`, {
       method: 'POST',
@@ -70,7 +97,7 @@ export class RestClient {
         'X-API-Key': this.apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ role, content, branch }),
+      body: JSON.stringify({ role, content, branch, provider, model }),
     });
 
     if (!response.ok) {

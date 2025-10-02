@@ -37,13 +37,18 @@ export class OpenAIProvider implements AIProvider {
             parameters: tool.parameters,
           },
         })),
+        tool_choice: options?.tools && options.tools.length > 0 ? 'auto' : undefined,
       });
 
       const choice = completion.choices[0];
+      console.log('OpenAI raw response:', JSON.stringify(choice.message, null, 2));
+
       const toolCalls = choice.message.tool_calls?.map((tc: any) => ({
         name: tc.function.name,
         arguments: JSON.parse(tc.function.arguments),
       }));
+
+      console.log('Parsed tool calls:', JSON.stringify(toolCalls, null, 2));
 
       return {
         content: choice.message.content || '',
