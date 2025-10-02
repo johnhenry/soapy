@@ -349,3 +349,42 @@
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+
+.message-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.message-user .message-attachments {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+.attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0.25rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s;
+}
+
+.message-user .attachment-link {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.attachment-link:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.message-user .attachment-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

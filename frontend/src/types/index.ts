@@ -14,6 +14,12 @@ export interface Message {
     name: string;
     arguments: Record<string, unknown>;
   }>;
+  attachments?: Array<{
+    filename: string;
+    contentType: string;
+    size: number;
+    path: string;
+  }>;
 }
 
 // Union type for conversation items (messages, tool calls, tool results)

@@ -10,7 +10,7 @@ import { ToolCallView } from './ToolCallView';
 import type { Message, Branding, ToolCall, ToolResult, ConversationItem } from '../types';
 import './ConversationView.css';
 
-type TabType = 'messages' | 'files' | 'branding';
+type TabType = 'messages' | 'branding';
 
 interface ConversationViewProps {
   conversationId: string;
@@ -76,24 +76,26 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       setError(null);
       setStreaming(true);
 
-      // Optimistically add user message to UI immediately
-      const optimisticUserMessage: Message & { itemType: 'message' } = {
-        sequenceNumber: items.length + 1,
-        role: 'user',
-        content,
-        timestamp: new Date().toISOString(),
-        commitHash: '',
-        itemType: 'message',
-      };
-      setItems([...items, optimisticUserMessage]);
+      // Debug: log files
+      console.log('handleSendMessage called with files:', files);
 
-      if (files && files.length > 0) {
-        for (const file of files) {
-          await client.uploadFile(conversationId, file);
-        }
-      }
+      // Force non-streaming mode when files are attached (streaming doesn't support files)
+      const shouldStream = useStreaming && (!files || files.length === 0);
+      console.log('useStreaming:', useStreaming, 'files:', files, 'shouldStream:', shouldStream);
 
-      if (useStreaming) {
+      if (shouldStream) {
+        console.log('Using STREAMING mode');
+
+        // Optimistically add user message to UI immediately (streaming mode only)
+        const optimisticUserMessage: Message & { itemType: 'message' } = {
+          sequenceNumber: items.length + 1,
+          role: 'user',
+          content,
+          timestamp: new Date().toISOString(),
+          commitHash: '',
+          itemType: 'message',
+        };
+
         // Add placeholder for assistant message
         const assistantMessage: Message & { itemType: 'message' } = {
           sequenceNumber: items.length + 2,
@@ -138,29 +140,57 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           }
         }
       } else {
+        console.log('Using NON-STREAMING mode');
+
+        // Add optimistic user message for immediate feedback
+        const optimisticUserMessage: Message & { itemType: 'message' } = {
+          sequenceNumber: items.length + 1,
+          role: 'user',
+          content,
+          timestamp: new Date().toISOString(),
+          commitHash: '',
+          itemType: 'message',
+          attachments: files?.map(f => ({
+            filename: f.name,
+            contentType: f.type,
+            size: f.size,
+            path: `files/${f.name}`,
+          })),
+        };
+        setItems([...items, optimisticUserMessage]);
+
         // Non-streaming mode - better for tool calls
+        console.log('About to call client.sendMessage...');
         await client.sendMessage(
           conversationId,
           'user',
           content,
           currentBranch !== 'main' ? currentBranch : undefined,
           selectedProvider,
-          selectedModel
+          selectedModel,
+          files
         );
+        console.log('client.sendMessage completed');
 
         // Refresh to get all items including AI response and tool calls
+        console.log('Reloading items...');
         await loadItems();
+        console.log('Items reloaded');
 
         // Notify parent that conversation was created (for first message)
         if (items.length === 0) {
+          console.log('Notifying parent of conversation creation');
           onConversationCreated?.();
         }
       }
     } catch (err) {
+      console.error('ERROR in handleSendMessage:', err);
       setError(err instanceof Error ? err.message : 'Failed to send message');
       // Reload items to remove optimistic updates on error
+      console.log('Reloading items after error...');
       await loadItems();
     } finally {
+      console.log('Setting streaming to false');
       setStreaming(false);
     }
   };
@@ -180,8 +210,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       // Switch to the new branch
       setCurrentBranch(branchName);
 
-      // Reload messages on the new branch
-      await loadMessages();
+      // Reload items on the new branch
+      await loadItems();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
     }
@@ -208,7 +238,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'messages', label: 'Messages' },
-    { id: 'files', label: 'Files' },
     { id: 'branding', label: 'Branding' },
   ];
 
@@ -257,6 +286,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         {activeTab === 'messages' && (
           <>
             <MessageList
+              conversationId={conversationId}
               items={items}
               streaming={streaming}
               onBranchFromMessage={handleBranchFromMessage}
@@ -301,8 +331,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
             <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
           </>
         )}
-
-        {activeTab === 'files' && <FileUploader conversationId={conversationId} />}
 
         {activeTab === 'branding' && (
           <BrandingEditor

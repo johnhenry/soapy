@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import { useApi } from '../context/ApiContext';
 import type { Message, ConversationItem } from '../types';
 import './MessageList.css';
 
 interface MessageListProps {
+  conversationId?: string;
   messages?: Message[];
   items?: ConversationItem[];
   streaming?: boolean;
   onBranchFromMessage?: (sequenceNumber: number, branchName: string) => Promise<void>;
 }
 
-export function MessageList({ messages, items, streaming, onBranchFromMessage }: MessageListProps) {
+export function MessageList({ conversationId, messages, items, streaming, onBranchFromMessage }: MessageListProps) {
+  const { config } = useApi();
   // Use items if provided, otherwise fall back to messages for backward compatibility
   const displayItems = items || (messages || []).map(m => ({ ...m, itemType: 'message' as const }));
   const [branchingFrom, setBranchingFrom] = useState<number | null>(null);
@@ -70,6 +73,21 @@ export function MessageList({ messages, items, streaming, onBranchFromMessage }:
             )}
           </div>
           <div className="message-content">{item.content}</div>
+          {item.attachments && item.attachments.length > 0 && conversationId && (
+            <div className="message-attachments">
+              {item.attachments.map((attachment, idx) => (
+                <a
+                  key={idx}
+                  href={`${config.baseUrl}/v1/chat/${conversationId}/files/${attachment.filename}`}
+                  download={attachment.filename}
+                  className="attachment-link"
+                  title={`${attachment.filename} (${(attachment.size / 1024).toFixed(2)} KB)`}
+                >
+                  📎 {attachment.filename}
+                </a>
+              ))}
+            </div>
+          )}
           {item.aiProvider && (
             <div className="message-footer">
               <span className="provider-badge">

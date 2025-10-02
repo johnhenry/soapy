@@ -39,16 +39,51 @@ export async function commitMessage(
   const filename = `${String(sequenceNumber).padStart(4, '0')}-${message.role}.md`;
   const filepath = join(dir, filename);
 
+  // Handle file attachments - save them to files/ directory
+  if (message.attachments && message.attachments.length > 0) {
+    const filesDir = join(dir, 'files');
+    await fs.promises.mkdir(filesDir, { recursive: true });
+
+    for (const attachment of message.attachments) {
+      if (attachment.data) {
+        // Decode base64 and save
+        const buffer = Buffer.from(attachment.data, 'base64');
+        const attachmentPath = join(filesDir, attachment.filename);
+        await fs.promises.writeFile(attachmentPath, buffer);
+
+        // Add to git
+        await git.add({ fs, dir, filepath: `files/${attachment.filename}` });
+
+        // Update attachment path
+        attachment.path = `files/${attachment.filename}`;
+        delete attachment.data; // Remove data from metadata
+      }
+    }
+  }
+
   // Create message content with frontmatter (without toolCalls - those go in separate files)
-  const frontmatter = [
+  const frontmatterParts = [
     '---',
     `role: ${message.role}`,
     `timestamp: ${message.timestamp.toISOString()}`,
     ...(message.aiProvider ? [`aiProvider: ${message.aiProvider}`] : []),
     ...(message.model ? [`model: ${message.model}`] : []),
-    '---',
-    '',
-  ].join('\n');
+  ];
+
+  // Add attachments as YAML array
+  if (message.attachments && message.attachments.length > 0) {
+    frontmatterParts.push('attachments:');
+    for (const attachment of message.attachments) {
+      frontmatterParts.push(`  - filename: ${attachment.filename}`);
+      frontmatterParts.push(`    contentType: ${attachment.contentType}`);
+      frontmatterParts.push(`    size: ${attachment.size}`);
+      frontmatterParts.push(`    path: ${attachment.path}`);
+    }
+  }
+
+  frontmatterParts.push('---', '');
+
+  const frontmatter = frontmatterParts.join('\n');
 
   const content = frontmatter + message.content;
 
@@ -301,13 +336,58 @@ function parseMessageFile(content: string, filename: string): Message | null {
 
     const [, frontmatterText, messageContent] = frontmatterMatch;
     const frontmatter: Record<string, string> = {};
+    let attachments: Array<{filename: string; contentType: string; size: number; path: string}> = [];
+
+    // Simple YAML parsing - handles attachments array
+    let currentKey: string | null = null;
+    let inAttachments = false;
+    let currentAttachment: any = {};
 
     frontmatterText.split('\n').forEach((line) => {
-      const [key, ...valueParts] = line.split(':');
-      if (key && valueParts.length > 0) {
-        frontmatter[key.trim()] = valueParts.join(':').trim();
+      if (line.startsWith('attachments:')) {
+        inAttachments = true;
+        return;
+      }
+
+      if (inAttachments) {
+        if (line.startsWith('  - ')) {
+          // New attachment
+          if (Object.keys(currentAttachment).length > 0) {
+            attachments.push(currentAttachment);
+          }
+          currentAttachment = {};
+          const [key, value] = line.substring(4).split(':').map(s => s.trim());
+          if (key && value) {
+            currentAttachment[key] = value;
+          }
+        } else if (line.startsWith('    ')) {
+          // Continuation of current attachment
+          const [key, value] = line.trim().split(':').map(s => s.trim());
+          if (key && value) {
+            currentAttachment[key] = isNaN(Number(value)) ? value : Number(value);
+          }
+        } else if (line.trim() && !line.startsWith(' ')) {
+          // End of attachments
+          if (Object.keys(currentAttachment).length > 0) {
+            attachments.push(currentAttachment);
+            currentAttachment = {};
+          }
+          inAttachments = false;
+        }
+      }
+
+      if (!inAttachments) {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+          frontmatter[key.trim()] = valueParts.join(':').trim();
+        }
       }
     });
+
+    // Don't forget last attachment
+    if (Object.keys(currentAttachment).length > 0) {
+      attachments.push(currentAttachment);
+    }
 
     return {
       sequenceNumber,
@@ -317,6 +397,7 @@ function parseMessageFile(content: string, filename: string): Message | null {
       aiProvider: frontmatter.aiProvider,
       model: frontmatter.model,
       commitHash: '', // Will be populated from Git log if needed
+      attachments: attachments.length > 0 ? attachments : undefined,
       // Note: toolCalls are no longer read from frontmatter, they come from separate files
     };
   } catch {

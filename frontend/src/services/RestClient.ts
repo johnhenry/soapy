@@ -63,24 +63,68 @@ export class RestClient {
     content: string,
     branch?: string,
     provider?: 'openai' | 'anthropic',
-    model?: string
+    model?: string,
+    files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
-    // First, post the user message
-    const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ role, content, branch }),
-    });
-    const userResult = await userResponse.json();
+    try {
+      console.log('RestClient.sendMessage called with files:', files);
 
-    // If it's a user message, trigger AI completion
-    if (role === 'user') {
-      await this.fetch(`/v1/chat/${id}/completion`, {
+      // Convert files to base64 attachments
+      console.log('Starting file conversion...');
+      const attachments = files ? await Promise.all(
+        files.map(async (file) => {
+          console.log('Converting file:', file.name);
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+
+          // Convert to base64 in chunks to avoid stack overflow
+          let binary = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode(...chunk);
+          }
+          const base64 = btoa(binary);
+
+          console.log('Converted file to base64:', file.name, 'size:', base64.length);
+          return {
+            filename: file.name,
+            contentType: file.type,
+            size: file.size,
+            data: base64,
+          };
+        })
+      ) : undefined;
+
+      console.log('File conversion complete. Attachments:', attachments?.length || 0);
+      console.log('Sending POST to /v1/chat/' + id + '/messages');
+
+      // First, post the user message with attachments
+      const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ provider, model, branch }),
+        body: JSON.stringify({ role, content, branch, attachments }),
       });
-    }
 
-    return userResult;
+      console.log('User message response status:', userResponse.status);
+      const userResult = await userResponse.json();
+      console.log('User message result:', userResult);
+
+      // If it's a user message, trigger AI completion
+      if (role === 'user') {
+        console.log('Triggering AI completion...');
+        await this.fetch(`/v1/chat/${id}/completion`, {
+          method: 'POST',
+          body: JSON.stringify({ provider, model, branch }),
+        });
+        console.log('AI completion triggered');
+      }
+
+      console.log('sendMessage complete, returning:', userResult);
+      return userResult;
+    } catch (error) {
+      console.error('ERROR in sendMessage:', error);
+      throw error;
+    }
   }
 
   async *sendMessageStream(

@@ -1,5 +1,13 @@
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
+export interface FileAttachment {
+  filename: string;
+  contentType: string;
+  size: number;
+  data?: string; // Base64-encoded data (optional, for transmission)
+  path?: string; // Relative path in Git repo
+}
+
 export interface Message {
   sequenceNumber: number;
   role: MessageRole;
@@ -12,6 +20,7 @@ export interface Message {
     name: string;
     arguments: Record<string, unknown>;
   }>;
+  attachments?: FileAttachment[];
 }
 
 export function validateMessage(msg: unknown): msg is Message {

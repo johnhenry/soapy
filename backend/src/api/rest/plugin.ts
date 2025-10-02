@@ -52,6 +52,12 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       branch?: string;
       provider?: 'openai' | 'anthropic';
       model?: string;
+      attachments?: Array<{
+        filename: string;
+        contentType: string;
+        size: number;
+        data: string; // Base64-encoded
+      }>;
     };
 
     // Create conversation if it doesn't exist
@@ -68,11 +74,17 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
     let result;
     try {
-      // Store user message (with branch context)
+      // Debug: log attachments
+      if (body.attachments) {
+        console.log('Received attachments:', body.attachments.map(a => ({ filename: a.filename, size: a.size, contentType: a.contentType })));
+      }
+
+      // Store user message (with branch context and attachments)
       result = await commitMessage(id, {
         role: body.role,
         content: body.content,
         timestamp: new Date(),
+        attachments: body.attachments,
       }, body.branch);
 
       // If user message, generate AI response
@@ -458,6 +470,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         ...('content' in item && { content: item.content }),
         ...('aiProvider' in item && { aiProvider: item.aiProvider }),
         ...('model' in item && { model: item.model }),
+        ...('attachments' in item && item.attachments && { attachments: item.attachments }),
         ...('toolName' in item && { toolName: item.toolName }),
         ...('parameters' in item && { parameters: item.parameters }),
         ...('requestedAt' in item && { requestedAt: item.requestedAt.toISOString() }),
@@ -756,6 +769,47 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
   // GET /v1/chat/:id/files/:filename - Download file
   fastify.get('/v1/chat/:id/files/:filename', async (request, reply) => {
+    const { id, filename } = request.params as { id: string; filename: string };
+
+    try {
+      const conversationDir = join(process.cwd(), 'conversations', id);
+      const filePath = join(conversationDir, 'files', filename);
+
+      // Check if file exists
+      const fs = await import('fs');
+      if (!fs.existsSync(filePath)) {
+        return reply.code(404).send({ error: 'File not found' });
+      }
+
+      // Read file
+      const fileData = await fs.promises.readFile(filePath);
+
+      // Determine content type from extension
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const contentTypes: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'pdf': 'application/pdf',
+        'txt': 'text/plain',
+        'json': 'application/json',
+      };
+      const contentType = contentTypes[ext || ''] || 'application/octet-stream';
+
+      reply
+        .code(200)
+        .header('Content-Type', contentType)
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(fileData);
+    } catch (error) {
+      console.error('File download error:', error);
+      reply.code(500).send({ error: 'Failed to download file' });
+    }
+  });
+
+  // Legacy stub for backward compatibility
+  fastify.get('/v1/chat/:id/files-stub/:filename', async (request, reply) => {
     const { filename } = request.params as { id: string; filename: string };
 
     // Stub implementation - return a small sample file
