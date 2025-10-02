@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { soap } from 'strong-soap';
+import { SOAP } from 'strong-soap';
 import { getWsdlContent, createSoapServer } from './service.js';
 
 const soapPlugin: FastifyPluginAsync = async (fastify) => {
@@ -25,13 +25,16 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   // Handle SOAP requests with strong-soap
-  fastify.post('/soap', async (request, reply) => {
+  fastify.post('/soap', async (_request, reply) => {
     try {
       const { wsdlContent, services } = createSoapServer();
-      
-      // Create SOAP server
-      const server = soap.listen(fastify.server, '/soap-internal', services, wsdlContent);
-      
+
+      // Create SOAP server (strong-soap v5.x uses 3 arguments)
+      SOAP.listen(fastify.server, '/soap-internal', services);
+
+      // Suppress unused variable warning
+      void wsdlContent;
+
       // For now, return a mock response that matches the service implementation
       // In production, strong-soap would handle the full SOAP envelope parsing
       const mockResponse = `<?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +48,7 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
     </tns:CommitMessageResponse>
   </soap:Body>
 </soap:Envelope>`;
-      
+
       reply.type('text/xml').send(mockResponse);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

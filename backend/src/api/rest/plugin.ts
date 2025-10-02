@@ -124,7 +124,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
   // GET /v1/chat/:id/files/:filename - Download file
   fastify.get('/v1/chat/:id/files/:filename', async (request, reply) => {
-    const { id, filename } = request.params as { id: string; filename: string };
+    const { filename } = request.params as { id: string; filename: string };
 
     // Stub implementation - return a small sample file
     const sampleData = Buffer.from('Hello from Soapy file storage!', 'utf-8');
