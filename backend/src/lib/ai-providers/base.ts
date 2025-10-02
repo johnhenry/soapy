@@ -3,6 +3,7 @@ export interface AIProviderConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  baseURL?: string; // For OpenAI-compatible providers (Ollama, LM Studio, etc.)
 }
 
 export interface GenerationOptions {

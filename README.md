@@ -9,7 +9,7 @@ Soapy is a hybrid SOAP/REST API system providing enterprise-grade conversation m
 - ✅ **Multi-Format Support**: OpenAI, Anthropic, and SOAP XML formats
 - ✅ **Streaming**: SSE and WebSocket support for real-time responses
 - ✅ **Conversation Branching**: Git branches enable alternative conversation paths
-- ✅ **Multi-Provider AI**: OpenAI and Anthropic integration (extensible)
+- ✅ **Multi-Provider AI**: OpenAI, Anthropic, Ollama, LM Studio, and any OpenAI-compatible provider
 - ✅ **Per-Conversation Branding**: Customizable UI branding stored in Git
 - ✅ **CLI Tools**: Git-style sub-command interface (soapy git, soapy convert, soapy ai)
 - ✅ **Optional Authentication**: API key-based authentication with organization access control
@@ -63,7 +63,8 @@ npm install
 
 # Copy environment file and configure
 cp .env.example .env
-# Edit .env to add your API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+# Edit .env to add your API keys and provider configurations
+# Supports: OpenAI, Anthropic, Ollama, LM Studio, and custom OpenAI-compatible providers
 
 # Build backend
 npm run build
@@ -88,6 +89,46 @@ cd frontend
 npm run dev
 # Opens on http://localhost:5173
 ```
+
+### AI Provider Configuration
+
+Soapy supports multiple AI providers. Configure them in `backend/.env`:
+
+#### OpenAI
+```bash
+OPENAI_API_KEY=sk-your-key-here
+OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: custom endpoint
+```
+
+#### Anthropic
+```bash
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+#### Ollama (Local LLM Server)
+```bash
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=llama2  # or llama3, mistral, codellama, etc.
+```
+
+Run Ollama: `ollama serve` then `ollama pull llama2`
+
+#### LM Studio (Local LLM Server)
+```bash
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_MODEL=local-model  # Set to your loaded model name
+```
+
+Start LM Studio server from the UI, load a model, and use the local server option.
+
+#### Custom OpenAI-Compatible Provider
+```bash
+OPENAI_COMPATIBLE_BASE_URL=https://your-provider.com/v1
+OPENAI_COMPATIBLE_MODEL=your-model-name
+OPENAI_COMPATIBLE_API_KEY=your-api-key  # If required
+```
+
+Any provider supporting OpenAI's chat completion API format will work (e.g., Together AI, Groq, LocalAI, etc.).
 
 ### Testing
 
@@ -120,9 +161,11 @@ npm run soapy -- git get-messages --id conv-123 --json
 echo '{"messages":[...]}' | npm run soapy -- convert to-openai
 npm run soapy -- convert openai-to-anthropic < input.json > output.json
 
-# AI operations (requires API keys in .env)
+# AI operations (configure providers in .env)
 npm run soapy -- ai generate --provider openai --prompt "Hello"
 npm run soapy -- ai stream --provider anthropic --prompt "Tell me a story"
+npm run soapy -- ai generate --provider ollama --prompt "What is AI?"
+npm run soapy -- ai generate --provider lmstudio --prompt "Explain quantum computing"
 
 # Health check
 npm run health
@@ -201,7 +244,7 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ### Future Enhancements 🚀
 
 - [ ] Production deployment configuration
-- [ ] Additional AI provider integrations beyond OpenAI and Anthropic
+- [x] Additional AI provider integrations (Ollama, LM Studio, OpenAI-compatible providers)
 - [ ] Enhanced file storage with actual Git persistence
 - [ ] Performance optimization for large conversations
 

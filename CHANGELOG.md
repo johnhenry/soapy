@@ -5,6 +5,13 @@ All notable changes to the Soapy project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- ✅ Additional AI provider integrations
+  - Ollama support (local LLM server)
+  - LM Studio support (local LLM server)
+  - Generic OpenAI-compatible provider support (works with any OpenAI API-compatible endpoint)
+  - Environment variable configuration for all new providers
+  - Updated CLI tools with new provider support
+  - Extended documentation with provider setup instructions
 - ✅ Swagger/OpenAPI documentation endpoints
   - `GET /docs` - Interactive Swagger UI
   - `GET /docs/json` - OpenAPI 3.0 specification (JSON)

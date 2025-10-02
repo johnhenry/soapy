@@ -7,17 +7,22 @@ import type {
   StreamChunk,
 } from './base.js';
 
-export class OpenAIProvider implements AIProvider {
-  name = 'openai';
+/**
+ * Generic provider for OpenAI-compatible APIs (Ollama, LM Studio, etc.)
+ * Uses the same interface as OpenAI but allows custom base URLs
+ */
+export class OpenAICompatibleProvider implements AIProvider {
+  name: string;
   private client: OpenAI;
   private defaultModel: string;
 
-  constructor(config: AIProviderConfig) {
+  constructor(config: AIProviderConfig, name: string = 'openai-compatible') {
+    this.name = name;
     this.client = new OpenAI({
-      apiKey: config.apiKey,
-      baseURL: config.baseURL, // Optional custom base URL
+      apiKey: config.apiKey || 'not-needed', // Some providers don't require API keys
+      baseURL: config.baseURL,
     });
-    this.defaultModel = config.model || 'gpt-4';
+    this.defaultModel = config.model || 'gpt-3.5-turbo';
   }
 
   async generate(prompt: string, options?: GenerationOptions): Promise<GenerationResult> {

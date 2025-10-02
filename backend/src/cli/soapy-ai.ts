@@ -21,7 +21,7 @@ async function generate() {
   
   if (providerIndex === -1 || promptIndex === -1) {
     console.error('Error: --provider and --prompt are required');
-    console.error('Usage: soapy ai generate --provider <openai|anthropic> --prompt <text> [--model <model>]');
+    console.error('Usage: soapy ai generate --provider <openai|anthropic|ollama|lmstudio|openai-compatible> --prompt <text> [--model <model>]');
     process.exit(1);
   }
 
@@ -31,7 +31,12 @@ async function generate() {
 
   if (!aiOrchestrator.hasProvider(provider)) {
     console.error(`Error: Provider '${provider}' not configured`);
-    console.error('Make sure OPENAI_API_KEY or ANTHROPIC_API_KEY is set in environment');
+    console.error('Make sure the appropriate environment variables are set:');
+    console.error('  - OpenAI: OPENAI_API_KEY');
+    console.error('  - Anthropic: ANTHROPIC_API_KEY');
+    console.error('  - Ollama: OLLAMA_BASE_URL (e.g., http://localhost:11434/v1)');
+    console.error('  - LM Studio: LMSTUDIO_BASE_URL (e.g., http://localhost:1234/v1)');
+    console.error('  - Custom: OPENAI_COMPATIBLE_BASE_URL');
     process.exit(1);
   }
 
@@ -66,7 +71,7 @@ async function streamGenerate() {
   
   if (providerIndex === -1 || promptIndex === -1) {
     console.error('Error: --provider and --prompt are required');
-    console.error('Usage: soapy ai stream --provider <openai|anthropic> --prompt <text>');
+    console.error('Usage: soapy ai stream --provider <openai|anthropic|ollama|lmstudio|openai-compatible> --prompt <text>');
     process.exit(1);
   }
 
@@ -76,7 +81,12 @@ async function streamGenerate() {
   const provider = aiOrchestrator.getProvider(providerType);
   if (!provider) {
     console.error(`Error: Provider '${providerType}' not configured`);
-    console.error('Make sure OPENAI_API_KEY or ANTHROPIC_API_KEY is set in environment');
+    console.error('Make sure the appropriate environment variables are set:');
+    console.error('  - OpenAI: OPENAI_API_KEY');
+    console.error('  - Anthropic: ANTHROPIC_API_KEY');
+    console.error('  - Ollama: OLLAMA_BASE_URL (e.g., http://localhost:11434/v1)');
+    console.error('  - LM Studio: LMSTUDIO_BASE_URL (e.g., http://localhost:1234/v1)');
+    console.error('  - Custom: OPENAI_COMPATIBLE_BASE_URL');
     process.exit(1);
   }
 
@@ -103,7 +113,7 @@ async function testTool() {
   
   if (providerIndex === -1 || toolIndex === -1 || promptIndex === -1) {
     console.error('Error: --provider, --tool, and --prompt are required');
-    console.error('Usage: soapy ai test-tool --provider <openai|anthropic> --tool <name> --prompt <text>');
+    console.error('Usage: soapy ai test-tool --provider <openai|anthropic|ollama|lmstudio|openai-compatible> --tool <name> --prompt <text>');
     process.exit(1);
   }
 
@@ -182,8 +192,17 @@ Options:
 Examples:
   soapy ai generate --provider openai --prompt "Hello, world!"
   soapy ai generate --provider anthropic --prompt "Explain AI" --model claude-3-opus-20240229
+  soapy ai generate --provider ollama --prompt "What is machine learning?"
+  soapy ai generate --provider lmstudio --prompt "Explain quantum computing"
   soapy ai stream --provider openai --prompt "Tell me a story"
   soapy ai test-tool --provider openai --tool search --prompt "Search for weather"
+
+Supported Providers:
+  openai             OpenAI's GPT models (requires OPENAI_API_KEY)
+  anthropic          Anthropic's Claude models (requires ANTHROPIC_API_KEY)
+  ollama             Ollama local LLM server (requires OLLAMA_BASE_URL)
+  lmstudio           LM Studio local server (requires LMSTUDIO_BASE_URL)
+  openai-compatible  Any OpenAI-compatible API (requires OPENAI_COMPATIBLE_BASE_URL)
   `);
   process.exit(0);
 }

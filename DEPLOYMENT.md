@@ -24,9 +24,26 @@ cp .env.example .env
 PORT=3000
 HOST=0.0.0.0  # Use 0.0.0.0 for production to bind to all interfaces
 
-# API Keys (required for AI features)
+# API Keys and Provider Configuration
+# OpenAI
 OPENAI_API_KEY=sk-your-openai-key-here
+OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: custom endpoint
+
+# Anthropic
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+
+# Ollama (local LLM server - optional)
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=llama2
+
+# LM Studio (local LLM server - optional)
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_MODEL=local-model
+
+# Generic OpenAI-compatible provider (optional)
+OPENAI_COMPATIBLE_BASE_URL=https://your-provider.com/v1
+OPENAI_COMPATIBLE_MODEL=your-model-name
+OPENAI_COMPATIBLE_API_KEY=your-api-key
 
 # Authentication
 API_KEYS=your-secure-api-key-1,your-secure-api-key-2
