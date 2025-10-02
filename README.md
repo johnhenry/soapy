@@ -81,6 +81,7 @@ cd backend
 npm run dev
 # Server will start on http://localhost:3000
 # WSDL available at: http://localhost:3000/soap?wsdl
+# API Documentation at: http://localhost:3000/docs
 
 # Terminal 2: Start frontend test client
 cd frontend
@@ -149,6 +150,11 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ```
 
 ## API Endpoints
+
+### Documentation
+
+- `GET /docs` - Interactive Swagger UI documentation
+- `GET /docs/json` - OpenAPI 3.0 specification (JSON)
 
 ### SOAP Endpoints
 
