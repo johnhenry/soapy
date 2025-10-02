@@ -25,12 +25,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('main');
+  const [branches, setBranches] = useState<string[]>(['main']);
 
   const client = new RestClient(config.baseUrl, config.apiKey);
 
   useEffect(() => {
     loadMessages();
     loadBranding();
+    loadBranches();
   }, [conversationId, currentBranch]);
 
   const loadMessages = async () => {
@@ -52,6 +54,16 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       setBranding(brandingData);
     } catch (err) {
       console.error('Failed to load branding:', err);
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const branchList = await client.getBranches(conversationId);
+      const branchNames = ['main', ...branchList.map(b => b.name)];
+      setBranches(branchNames);
+    } catch (err) {
+      console.error('Failed to load branches:', err);
     }
   };
 
@@ -77,6 +89,24 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
   const handleSaveBranding = async (newBranding: Branding) => {
     setBranding(newBranding);
+  };
+
+  const handleBranchFromMessage = async (sequenceNumber: number, branchName: string) => {
+    try {
+      setError(null);
+      await client.createBranch(conversationId, branchName, sequenceNumber);
+
+      // Reload branches to update dropdown
+      await loadBranches();
+
+      // Switch to the new branch
+      setCurrentBranch(branchName);
+
+      // Reload messages on the new branch
+      await loadMessages();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create branch');
+    }
   };
 
   const tabs: { id: TabType; label: string }[] = [
@@ -105,7 +135,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <div className="branch-selector">
             <label>Branch:</label>
             <select value={currentBranch} onChange={(e) => setCurrentBranch(e.target.value)}>
-              <option value="main">main</option>
+              {branches.map((branch) => (
+                <option key={branch} value={branch}>{branch}</option>
+              ))}
             </select>
           </div>
         )}
@@ -116,7 +148,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       <div className="conversation-content">
         {activeTab === 'messages' && (
           <>
-            <MessageList messages={messages} streaming={streaming} />
+            <MessageList
+              messages={messages}
+              streaming={streaming}
+              onBranchFromMessage={handleBranchFromMessage}
+            />
             <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
           </>
         )}

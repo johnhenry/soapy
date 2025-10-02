@@ -3,12 +3,28 @@ import type { Message, Conversation, Branch, ToolCall, ToolResult, Branding, Fil
 export class RestClient {
   constructor(private baseUrl: string, private apiKey: string) {}
 
+  async listConversations(): Promise<Array<{ id: string; title: string; updatedAt: string }>> {
+    const response = await this.fetch('/v1/conversations');
+    const data = await response.json();
+    return data.conversations || [];
+  }
+
+  async deleteConversation(id: string): Promise<void> {
+    await this.fetch(`/v1/chat/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   private async fetch(path: string, options?: RequestInit) {
-    const headers = {
-      'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
       'X-API-Key': this.apiKey,
       ...options?.headers,
     };
+
+    // Only add Content-Type for methods that have a body
+    if (options?.method && ['POST', 'PUT', 'PATCH'].includes(options.method)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,

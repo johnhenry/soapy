@@ -6,6 +6,7 @@ import './ConversationList.css';
 interface ConversationListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onConversationCreated?: () => void;
 }
 
 interface Conversation {
@@ -14,11 +15,12 @@ interface Conversation {
   updatedAt: string;
 }
 
-export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
+export function ConversationList({ selectedId, onSelect, onConversationCreated }: ConversationListProps) {
   const { config } = useApi();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -34,9 +36,8 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
     setError(null);
     try {
       const client = new RestClient(config.baseUrl, config.apiKey);
-      // TODO: Add GET /v1/conversations endpoint to backend
-      // For now, conversations will be empty until backend implements this
-      setConversations([]);
+      const convList = await client.listConversations();
+      setConversations(convList);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
       setConversations([]);
@@ -47,8 +48,41 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   const handleNewConversation = async () => {
     const newId = `conv-${Date.now()}`;
-    // TODO: Call API to create conversation when backend implements POST /v1/conversations
     onSelect(newId);
+    // Reload conversations after a brief delay to allow backend to create it
+    setTimeout(() => {
+      loadConversations();
+      onConversationCreated?.();
+    }, 500);
+  };
+
+  const handleDeleteClick = (id: string, title: string) => {
+    setDeleteConfirm({ id, title });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      const client = new RestClient(config.baseUrl, config.apiKey);
+      await client.deleteConversation(deleteConfirm.id);
+
+      // If deleted conversation was selected, clear selection
+      if (selectedId === deleteConfirm.id) {
+        onSelect(null as any);
+      }
+
+      // Reload conversation list
+      await loadConversations();
+      setDeleteConfirm(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete conversation');
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(null);
   };
 
   return (
@@ -70,18 +104,43 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
           </div>
         )}
         {conversations.map((conv) => (
-          <button
-            key={conv.id}
-            className={`conversation-item ${selectedId === conv.id ? 'selected' : ''}`}
-            onClick={() => onSelect(conv.id)}
-          >
-            <div className="conversation-item-title">{conv.title}</div>
-            <div className="conversation-item-date">
-              {new Date(conv.updatedAt).toLocaleDateString()}
-            </div>
-          </button>
+          <div key={conv.id} className="conversation-item-wrapper">
+            <button
+              className={`conversation-item ${selectedId === conv.id ? 'selected' : ''}`}
+              onClick={() => onSelect(conv.id)}
+            >
+              <div className="conversation-item-title">{conv.title}</div>
+              <div className="conversation-item-date">
+                {new Date(conv.updatedAt).toLocaleDateString()}
+              </div>
+            </button>
+            <button
+              className="delete-conversation-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(conv.id, conv.title);
+              }}
+              title="Delete conversation"
+            >
+              🗑️
+            </button>
+          </div>
         ))}
       </div>
+
+      {deleteConfirm && (
+        <div className="delete-modal-overlay" onClick={handleCancelDelete}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Conversation?</h3>
+            <p>Are you sure you want to delete "{deleteConfirm.title}"?</p>
+            <p className="delete-warning">This action cannot be undone.</p>
+            <div className="delete-modal-actions">
+              <button onClick={handleCancelDelete} className="btn-cancel">Cancel</button>
+              <button onClick={handleConfirmDelete} className="btn-delete">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

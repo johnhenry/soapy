@@ -1,13 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Message } from '../types';
 import './MessageList.css';
 
 interface MessageListProps {
   messages: Message[];
   streaming?: boolean;
+  onBranchFromMessage?: (sequenceNumber: number, branchName: string) => Promise<void>;
 }
 
-export function MessageList({ messages, streaming }: MessageListProps) {
+export function MessageList({ messages, streaming, onBranchFromMessage }: MessageListProps) {
+  const [branchingFrom, setBranchingFrom] = useState<number | null>(null);
+  const [branchName, setBranchName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,6 +20,24 @@ export function MessageList({ messages, streaming }: MessageListProps) {
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleString();
+  };
+
+  const handleBranchClick = (sequenceNumber: number) => {
+    setBranchingFrom(sequenceNumber);
+    setBranchName(`branch-from-${sequenceNumber}`);
+  };
+
+  const handleCreateBranch = async () => {
+    if (branchingFrom !== null && branchName.trim() && onBranchFromMessage) {
+      await onBranchFromMessage(branchingFrom, branchName);
+      setBranchingFrom(null);
+      setBranchName('');
+    }
+  };
+
+  const handleCancelBranch = () => {
+    setBranchingFrom(null);
+    setBranchName('');
   };
 
   return (
@@ -30,7 +51,7 @@ export function MessageList({ messages, streaming }: MessageListProps) {
           {messages.map((message) => (
             <div key={message.sequenceNumber} className={`message message-${message.role}`}>
               <div className="message-header">
-                <span className="message-role">{message.role}</span>
+                <span className="message-role">{message.role.toUpperCase()}</span>
                 <span className="message-meta">
                   {formatTimestamp(message.timestamp)}
                   {message.commitHash && (
@@ -39,6 +60,15 @@ export function MessageList({ messages, streaming }: MessageListProps) {
                     </span>
                   )}
                 </span>
+                {onBranchFromMessage && (
+                  <button
+                    className="branch-btn"
+                    onClick={() => handleBranchClick(message.sequenceNumber)}
+                    title="Branch from this message"
+                  >
+                    🌿
+                  </button>
+                )}
               </div>
               <div className="message-content">{message.content}</div>
               {message.aiProvider && (
@@ -47,6 +77,21 @@ export function MessageList({ messages, streaming }: MessageListProps) {
                     {message.aiProvider}
                     {message.model && ` (${message.model})`}
                   </span>
+                </div>
+              )}
+              {branchingFrom === message.sequenceNumber && (
+                <div className="branch-form">
+                  <input
+                    type="text"
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    placeholder="Enter branch name..."
+                    autoFocus
+                  />
+                  <button onClick={handleCreateBranch} disabled={!branchName.trim()}>
+                    Create
+                  </button>
+                  <button onClick={handleCancelBranch}>Cancel</button>
                 </div>
               )}
             </div>
