@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { gitStorage } from '../../lib/git-storage/index.js';
 import { commitMessage, getMessages } from '../../lib/git-storage/message.js';
-import { createBranch, getBranches } from '../../lib/git-storage/branch.js';
+import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
 import { aiOrchestrator } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
 
@@ -46,7 +46,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
   // POST /v1/chat/:id/messages - Submit message
   fastify.post('/v1/chat/:id/messages', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { role: MessageRole; content: string };
+    const body = request.body as { role: MessageRole; content: string; branch?: string };
 
     // Create conversation if it doesn't exist
     if (!(await gitStorage.conversationExists(id))) {
@@ -60,56 +60,69 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // Store user message
-    const result = await commitMessage(id, {
-      role: body.role,
-      content: body.content,
-      timestamp: new Date(),
-    });
+    let result;
+    try {
+      // Store user message (with branch context)
+      result = await commitMessage(id, {
+        role: body.role,
+        content: body.content,
+        timestamp: new Date(),
+      }, body.branch);
 
-    // If user message, generate AI response
-    if (body.role === 'user') {
-      try {
-        // Try OpenAI first, fallback to Anthropic
-        let aiResponse;
-        let provider = 'openai';
-        let model = 'gpt-4';
+      // If user message, generate AI response
+      if (body.role === 'user') {
+        try {
+          // Try OpenAI first, fallback to Anthropic
+          let aiResponse;
+          let provider = 'openai';
+          let model = 'gpt-4';
 
-        if (aiOrchestrator.hasProvider('openai')) {
-          aiResponse = await aiOrchestrator.generate('openai', body.content);
-        } else if (aiOrchestrator.hasProvider('anthropic')) {
-          provider = 'anthropic';
-          model = 'claude-3-5-sonnet-20241022';
-          aiResponse = await aiOrchestrator.generate('anthropic', body.content);
-        } else {
-          // No AI provider available, just return user message stored
-          return reply.code(201).send({
-            conversationId: id,
-            sequenceNumber: result.sequenceNumber,
-            commitHash: result.commitHash,
-            timestamp: result.timestamp.toISOString(),
-          });
+          if (aiOrchestrator.hasProvider('openai')) {
+            aiResponse = await aiOrchestrator.generate('openai', body.content);
+          } else if (aiOrchestrator.hasProvider('anthropic')) {
+            provider = 'anthropic';
+            model = 'claude-3-5-sonnet-20241022';
+            aiResponse = await aiOrchestrator.generate('anthropic', body.content);
+          } else {
+            // No AI provider available, just return user message stored
+            return reply.code(201).send({
+              conversationId: id,
+              sequenceNumber: result.sequenceNumber,
+              commitHash: result.commitHash,
+              timestamp: result.timestamp.toISOString(),
+            });
+          }
+
+          // Store assistant response (on same branch)
+          await commitMessage(id, {
+            role: 'assistant',
+            content: aiResponse.content,
+            timestamp: new Date(),
+            aiProvider: provider,
+            model: aiResponse.model || model,
+          }, body.branch);
+        } catch (error) {
+          console.error('AI generation error:', error);
+          // Continue even if AI fails - user message is already stored
         }
-
-        // Store assistant response
-        await commitMessage(id, {
-          role: 'assistant',
-          content: aiResponse.content,
-          timestamp: new Date(),
-          aiProvider: provider,
-          model: aiResponse.model || model,
-        });
-      } catch (error) {
-        console.error('AI generation error:', error);
-        // Continue even if AI fails - user message is already stored
+      }
+    } finally {
+      // Always return to main branch after message operations
+      if (body.branch) {
+        const git = await import('isomorphic-git');
+        const fs = await import('fs');
+        const { join } = await import('path');
+        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+        const dir = join(CONVERSATIONS_DIR, id);
+        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
       }
     }
 
     reply.code(201).send({
       conversationId: id,
-      sequenceNumber: result.sequenceNumber,
-      commitHash: result.commitHash,
-      timestamp: result.timestamp.toISOString(),
+      sequenceNumber: result!.sequenceNumber,
+      commitHash: result!.commitHash,
+      timestamp: result!.timestamp.toISOString(),
     });
   });
 
@@ -182,6 +195,22 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         messageCount: b.messageCount,
       })),
     });
+  });
+
+  // DELETE /v1/chat/:id/branch/:branchName - Delete branch
+  fastify.delete('/v1/chat/:id/branch/:branchName', async (request, reply) => {
+    const { id, branchName } = request.params as { id: string; branchName: string };
+
+    try {
+      await deleteBranch(id, branchName);
+      reply.code(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Cannot delete main branch') {
+        reply.code(400).send({ error: error.message });
+      } else {
+        throw error;
+      }
+    }
   });
 
   // GET /v1/chat/:id/branding - Get branding

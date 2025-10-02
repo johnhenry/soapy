@@ -50,10 +50,10 @@ export class RestClient {
     return data.messages || [];
   }
 
-  async sendMessage(id: string, role: string, content: string): Promise<{ sequenceNumber: number; commitHash: string }> {
+  async sendMessage(id: string, role: string, content: string, branch?: string): Promise<{ sequenceNumber: number; commitHash: string }> {
     const response = await this.fetch(`/v1/chat/${id}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ role, content }),
+      body: JSON.stringify({ role, content, branch }),
     });
     return response.json();
   }
@@ -70,6 +70,12 @@ export class RestClient {
     const response = await this.fetch(`/v1/chat/${id}/branches`);
     const data = await response.json();
     return data.branches || [];
+  }
+
+  async deleteBranch(id: string, branchName: string): Promise<void> {
+    await this.fetch(`/v1/chat/${id}/branch/${encodeURIComponent(branchName)}`, {
+      method: 'DELETE',
+    });
   }
 
   async getBranding(id: string): Promise<Branding> {

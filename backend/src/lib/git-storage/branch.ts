@@ -35,10 +35,7 @@ export async function createBranch(
   const ref = `refs/heads/${branchName}`;
   await git.branch({ fs, dir, ref: branchName, checkout: false, object: targetCommit });
 
-  // Switch to main to update metadata (don't pollute the new branch)
-  await git.checkout({ fs, dir, ref: 'main' });
-
-  // Store branch metadata on main branch
+  // Store branch metadata (not committed to Git - just local cache)
   const branchesPath = join(dir, '.soapy-branches.json');
   let branches: Record<string, Branch> = {};
 
@@ -60,25 +57,6 @@ export async function createBranch(
 
   await fs.promises.writeFile(branchesPath, JSON.stringify(branches, null, 2));
 
-  // Commit metadata on main branch
-  await git.add({ fs, dir, filepath: '.soapy-branches.json' });
-  await git.commit({
-    fs,
-    dir,
-    message: `Create branch: ${branchName}`,
-    author: {
-      name: 'Soapy System',
-      email: 'system@soapy.local',
-    },
-  });
-
-  // Ensure we stay on main after creating the branch
-  // (git.checkout above should have done this, but double-check)
-  const currentBranch = await git.currentBranch({ fs, dir });
-  if (currentBranch !== 'main') {
-    await git.checkout({ fs, dir, ref: 'main' });
-  }
-
   return {
     branchRef: ref,
     createdAt,
@@ -98,5 +76,30 @@ export async function getBranches(conversationId: string): Promise<Branch[]> {
     }));
   } catch {
     return [];
+  }
+}
+
+export async function deleteBranch(
+  conversationId: string,
+  branchName: string
+): Promise<void> {
+  if (branchName === 'main') {
+    throw new Error('Cannot delete main branch');
+  }
+
+  const dir = join(CONVERSATIONS_DIR, conversationId);
+
+  // Delete the Git branch (needs full ref path)
+  await git.deleteBranch({ fs, dir, ref: `refs/heads/${branchName}` });
+
+  // Remove branch metadata from local cache
+  const branchesPath = join(dir, '.soapy-branches.json');
+  try {
+    const data = await fs.promises.readFile(branchesPath, 'utf-8');
+    const branches = JSON.parse(data);
+    delete branches[branchName];
+    await fs.promises.writeFile(branchesPath, JSON.stringify(branches, null, 2));
+  } catch {
+    // Metadata file doesn't exist or is invalid - ignore
   }
 }

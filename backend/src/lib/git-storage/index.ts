@@ -29,6 +29,12 @@ export class GitStorage {
     // Initialize Git repository
     await git.init({ fs, dir, defaultBranch: conversation.mainBranch || 'main' });
 
+    // Create .gitignore to exclude branch metadata cache
+    await fs.promises.writeFile(
+      join(dir, '.gitignore'),
+      '.soapy-branches.json\n'
+    );
+
     // Create initial metadata file
     const metadata = {
       id: conversation.id,
@@ -45,6 +51,7 @@ export class GitStorage {
     );
 
     // Initial commit
+    await git.add({ fs, dir, filepath: '.gitignore' });
     await git.add({ fs, dir, filepath: '.soapy-metadata.json' });
     await git.commit({
       fs,

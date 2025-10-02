@@ -10,7 +10,7 @@ import { ToolCallView } from './ToolCallView';
 import type { Message, Branding, ToolCall, ToolResult } from '../types';
 import './ConversationView.css';
 
-type TabType = 'messages' | 'branches' | 'files' | 'tools' | 'branding';
+type TabType = 'messages' | 'files' | 'tools' | 'branding';
 
 interface ConversationViewProps {
   conversationId: string;
@@ -78,7 +78,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         }
       }
 
-      await client.sendMessage(conversationId, 'user', content);
+      await client.sendMessage(conversationId, 'user', content, currentBranch !== 'main' ? currentBranch : undefined);
       await loadMessages();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
@@ -109,9 +109,27 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     }
   };
 
+  const handleDeleteBranch = async () => {
+    if (currentBranch === 'main') {
+      return;
+    }
+
+    try {
+      setError(null);
+      await client.deleteBranch(conversationId, currentBranch);
+
+      // Switch to main
+      setCurrentBranch('main');
+
+      // Reload branches
+      await loadBranches();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete branch');
+    }
+  };
+
   const tabs: { id: TabType; label: string }[] = [
     { id: 'messages', label: 'Messages' },
-    { id: 'branches', label: 'Branches' },
     { id: 'files', label: 'Files' },
     { id: 'tools', label: 'Tools' },
     { id: 'branding', label: 'Branding' },
@@ -131,7 +149,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             </button>
           ))}
         </div>
-        {activeTab === 'messages' && (
+        <div className="branch-info">
           <div className="branch-selector">
             <label>Branch:</label>
             <select value={currentBranch} onChange={(e) => setCurrentBranch(e.target.value)}>
@@ -139,8 +157,21 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 <option key={branch} value={branch}>{branch}</option>
               ))}
             </select>
+            {currentBranch !== 'main' && (
+              <button
+                className="delete-branch-btn"
+                onClick={handleDeleteBranch}
+                title={`Delete branch "${currentBranch}"`}
+              >
+                ×
+              </button>
+            )}
           </div>
-        )}
+          <div className="branch-stats">
+            {messages.length} message{messages.length !== 1 ? 's' : ''}
+            {currentBranch !== 'main' && <span className="branch-indicator">📍 viewing branch</span>}
+          </div>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -156,8 +187,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
           </>
         )}
-
-        {activeTab === 'branches' && <BranchManager conversationId={conversationId} />}
 
         {activeTab === 'files' && <FileUploader conversationId={conversationId} />}
 

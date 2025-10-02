@@ -13,9 +13,16 @@ export interface CommitMessageResult {
 
 export async function commitMessage(
   conversationId: string,
-  message: Omit<Message, 'sequenceNumber' | 'commitHash'>
+  message: Omit<Message, 'sequenceNumber' | 'commitHash'>,
+  branch?: string
 ): Promise<CommitMessageResult> {
   const dir = join(CONVERSATIONS_DIR, conversationId);
+
+  // Checkout the branch if specified
+  const originalBranch = await git.currentBranch({ fs, dir });
+  if (branch && branch !== originalBranch) {
+    await git.checkout({ fs, dir, ref: branch });
+  }
 
   // Get next sequence number
   const sequenceNumber = await getNextSequenceNumber(dir);
@@ -51,6 +58,9 @@ export async function commitMessage(
       email: 'system@soapy.local',
     },
   });
+
+  // Stay on the branch if we checked it out (don't restore to original)
+  // This allows subsequent commits in the same operation to use the same branch
 
   return {
     commitHash,
