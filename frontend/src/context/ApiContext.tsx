@@ -12,7 +12,7 @@ const ApiContext = createContext<ApiContextType | null>(null);
 
 export function ApiProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<ApiConfig>(() => ({
-    apiKey: localStorage.getItem('soapy_api_key') || '',
+    apiKey: localStorage.getItem('soapy_api_key') || 'dev-api-key',
     baseUrl: 'http://localhost:3000',
     format: 'openai',
     protocol: 'rest',
