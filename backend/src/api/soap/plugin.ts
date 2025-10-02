@@ -27,13 +27,10 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
   // Handle SOAP requests with strong-soap
   fastify.post('/soap', async (_request, reply) => {
     try {
-      const { wsdlContent, services } = createSoapServer();
+      const { services } = createSoapServer();
 
       // Create SOAP server (strong-soap v5.x uses 3 arguments)
       SOAP.listen(fastify.server, '/soap-internal', services);
-
-      // Suppress unused variable warning
-      void wsdlContent;
 
       // For now, return a mock response that matches the service implementation
       // In production, strong-soap would handle the full SOAP envelope parsing
