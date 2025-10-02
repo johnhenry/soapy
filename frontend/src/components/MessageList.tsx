@@ -24,7 +24,9 @@ export function MessageList({ messages, streaming, onBranchFromMessage }: Messag
 
   const handleBranchClick = (sequenceNumber: number) => {
     setBranchingFrom(sequenceNumber);
-    setBranchName(`branch-from-${sequenceNumber}`);
+    // Generate random branch name: branch-XXXXX (5 random alphanumeric chars)
+    const randomId = Math.random().toString(36).substring(2, 7).toLowerCase();
+    setBranchName(`branch-${randomId}`);
   };
 
   const handleCreateBranch = async () => {
