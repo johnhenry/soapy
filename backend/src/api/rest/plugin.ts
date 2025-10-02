@@ -4,6 +4,8 @@ import { commitMessage, getMessages, getConversationItems, commitToolCall, commi
 import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
 import { aiOrchestrator } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
+import { join } from 'path';
+import fs from 'fs';
 
 const restPlugin: FastifyPluginAsync = async (fastify) => {
   // DELETE /v1/chat/:id - Delete conversation
@@ -181,25 +183,32 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
       // Format messages for OpenAI (with vision support and tool calls/results)
       const openaiMessages: any[] = [];
+      console.log('Building conversation context. Total items:', items.length);
+
       for (const item of items) {
         if (item.itemType === 'message') {
           const message = item as any;
+          console.log(`Message ${message.sequenceNumber}: role=${message.role}, has attachments=${!!message.attachments}, count=${message.attachments?.length || 0}`);
 
           // If message has attachments (images), format as vision content
           if (message.attachments && message.attachments.length > 0) {
             const contentParts: any[] = [{ type: 'text', text: message.content }];
 
             for (const attachment of message.attachments) {
+              console.log(`  Attachment: ${attachment.filename}, type=${attachment.contentType}, path=${attachment.path}`);
               // Only include images for vision
               if (attachment.contentType.startsWith('image/')) {
                 const base64Data = await readAttachment(attachment.filename);
                 if (base64Data) {
+                  console.log(`  ✓ Loaded image ${attachment.filename} (${base64Data.length} chars base64)`);
                   contentParts.push({
                     type: 'image_url',
                     image_url: {
                       url: `data:${attachment.contentType};base64,${base64Data}`
                     }
                   });
+                } else {
+                  console.log(`  ✗ Failed to load image ${attachment.filename}`);
                 }
               }
             }
@@ -580,30 +589,105 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           let model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
           let fullResponse = '';
 
+          // Build full conversation context with vision support
+          const items = await getConversationItems(id, body.branch);
+          const conversationDir = join(process.env.CONVERSATIONS_DIR || './conversations', id);
+
+          // Helper to read file attachments
+          async function readAttachment(filename: string): Promise<string | null> {
+            try {
+              const filePath = join(conversationDir, 'files', filename);
+              const buffer = await fs.promises.readFile(filePath);
+              return buffer.toString('base64');
+            } catch (error) {
+              console.error('[STREAM] Failed to read attachment:', filename, error);
+              return null;
+            }
+          }
+
+          // Format messages for AI with vision support
+          const formattedMessages: any[] = [];
+          console.log('[STREAM] Building conversation context. Total items:', items.length);
+
+          for (const item of items) {
+            if (item.itemType === 'message') {
+              const message = item as any;
+              console.log(`[STREAM] Message ${message.sequenceNumber}: role=${message.role}, has attachments=${!!message.attachments}, count=${message.attachments?.length || 0}`);
+
+              // If message has attachments (images), format as vision content
+              if (message.attachments && message.attachments.length > 0) {
+                const contentParts: any[] = [{ type: 'text', text: message.content }];
+
+                for (const attachment of message.attachments) {
+                  console.log(`[STREAM]   Attachment: ${attachment.filename}, type=${attachment.contentType}`);
+                  if (attachment.contentType.startsWith('image/')) {
+                    const base64Data = await readAttachment(attachment.filename);
+                    if (base64Data) {
+                      console.log(`[STREAM]   ✓ Loaded image ${attachment.filename} (${base64Data.length} chars base64)`);
+                      contentParts.push({
+                        type: 'image_url',
+                        image_url: {
+                          url: `data:${attachment.contentType};base64,${base64Data}`
+                        }
+                      });
+                    } else {
+                      console.log(`[STREAM]   ✗ Failed to load image ${attachment.filename}`);
+                    }
+                  }
+                }
+
+                formattedMessages.push({
+                  role: message.role,
+                  content: contentParts
+                });
+              } else {
+                formattedMessages.push({
+                  role: message.role,
+                  content: message.content
+                });
+              }
+            }
+          }
+
           // Note: Streaming with tools is not currently supported
           // Tools require non-streaming API to handle tool use properly
           if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
-            const aiProvider = aiOrchestrator.getProvider('openai');
-            if (aiProvider) {
-              for await (const chunk of aiProvider.stream(body.content, { model })) {
-                fullResponse += chunk.delta;
-                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
+            const OpenAI = (await import('openai')).default;
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-                if (chunk.done) {
-                  break;
-                }
+            const stream = await openai.chat.completions.create({
+              model,
+              messages: formattedMessages,
+              stream: true,
+            });
+
+            for await (const chunk of stream) {
+              const delta = chunk.choices[0]?.delta?.content || '';
+              if (delta) {
+                fullResponse += delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
               }
             }
           } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
-            const aiProvider = aiOrchestrator.getProvider('anthropic');
-            if (aiProvider) {
-              for await (const chunk of aiProvider.stream(body.content, { model })) {
-                fullResponse += chunk.delta;
-                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
+            const Anthropic = (await import('@anthropic-ai/sdk')).default;
+            const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-                if (chunk.done) {
-                  break;
-                }
+            // Anthropic requires system messages to be separate
+            const systemMessage = formattedMessages.find(m => m.role === 'system');
+            const userMessages = formattedMessages.filter(m => m.role !== 'system');
+
+            const stream = await anthropic.messages.stream({
+              model,
+              max_tokens: 4096,
+              ...(systemMessage && { system: systemMessage.content }),
+              messages: userMessages,
+            });
+
+            for await (const chunk of stream) {
+              if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+                const delta = chunk.delta.text;
+                fullResponse += delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
               }
             }
           } else {
