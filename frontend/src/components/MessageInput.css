@@ -1,0 +1,64 @@
+.message-input {
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+  background: var(--bg);
+}
+
+.attached-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.attached-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+}
+
+.file-name {
+  color: var(--text-secondary);
+}
+
+.remove-file {
+  background: transparent;
+  color: var(--danger);
+  border: none;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-area textarea {
+  resize: vertical;
+  min-height: 60px;
+  max-height: 200px;
+}
+
+.input-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.input-actions button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}

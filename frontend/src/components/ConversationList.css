@@ -1,0 +1,71 @@
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.conversation-list-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.new-conversation-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.conversation-items {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.conversation-item {
+  width: 100%;
+  text-align: left;
+  padding: 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.conversation-item:hover {
+  background: var(--bg-secondary);
+}
+
+.conversation-item.selected {
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--primary);
+}
+
+.conversation-item-title {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.conversation-item-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.conversation-list-message,
+.conversation-list-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.conversation-list-error {
+  padding: 1rem;
+  margin: 1rem;
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
