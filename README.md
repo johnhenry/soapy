@@ -179,23 +179,20 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 
 - [x] Backend project setup with TypeScript + ES modules
 - [x] Data models (6 entities: Conversation, Message, Branch, ToolCall, ToolResult, Branding)
-- [x] SOAP API with WSDL serving
-- [x] REST API with 8 endpoints
-- [x] Contract tests (25 tests, all passing)
+- [x] SOAP API with WSDL serving (8 operations defined, 6 implemented)
+- [x] REST API with 7 endpoints
+- [x] Core libraries (git-storage, format-converter, ai-providers, auth)
+- [x] Integration tests (7 scenarios, 54 tests passing)
+- [x] CLI tools (4 tools: soapy-health, soapy-git, soapy-convert, soapy-ai)
 - [x] Frontend test client (Vite + React)
-
-### In Progress 🚧
-
-- [ ] Core libraries implementation (git-storage, format-converter, ai-providers, auth, streaming)
-- [ ] Integration tests (7 scenarios)
-- [ ] CLI tools (4 tools per Constitutional Principle II)
+- [x] Streaming support (SSE)
+- [x] Authentication/authorization (optional, configurable)
 
 ### Planned 📋
 
-- [ ] File attachment support (upload/download via REST and SOAP)
-- [ ] Full AI provider integration
-- [ ] Authentication and authorization
+- [ ] File attachment support (CommitFile and GetFile SOAP operations)
 - [ ] Production deployment configuration
+- [ ] Additional AI provider integrations beyond OpenAI and Anthropic
 
 ## Testing
 

@@ -178,16 +178,18 @@ Run: `cd backend && npm test`
 ✅ **Complete**:
 - Backend setup (TypeScript, Fastify, strong-soap, Vitest)
 - Data models (6 models with validation)
-- SOAP/REST APIs (stub implementations for 6 core operations, WSDL defines 8 operations)
+- SOAP/REST APIs (6 of 8 SOAP operations implemented, WSDL defines 8 operations)
+- Core libraries (git-storage, format-converter, ai-providers, auth)
 - Frontend test client (Vite + React)
-- CLI tools (soapy-health with --json flag)
+- CLI tools (4 tools: soapy-health, soapy-git, soapy-convert, soapy-ai)
 - Integration test framework (7 scenarios with 21 passing tests, 1 skipped)
+- Streaming support (SSE)
 - Documentation (README, CHANGELOG, DEPLOYMENT, IMPLEMENTATION_SUMMARY)
 
 🚧 **In Progress** (awaiting future phases):
-- Git storage implementation
-- AI provider integration
 - File upload/download operations (CommitFile and GetFile defined in WSDL, not yet implemented)
+- Authentication implementation (library exists, needs API integration)
+- Production deployment configuration
 - Authentication implementation
 
 ## Development Notes

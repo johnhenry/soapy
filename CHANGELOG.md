@@ -129,25 +129,23 @@ This is the first implementation of the Soapy project, built following the GitHu
 - `eslint` ^8.53.0 - Linting
 - `prettier` ^3.1.0 - Code formatting
 
-### Known Limitations
+### Implementation Notes
 
-- Git storage library not yet implemented (stub responses only)
-- Format converter library not yet implemented
-- AI provider integration not yet functional
-- Authentication/authorization not yet implemented
-- Only 1 of 7 integration test scenarios implemented
-- CLI tools: Only 1 of 4 planned tools implemented
+- ✅ Git storage library fully implemented with isomorphic-git
+- ✅ Format converter library supporting OpenAI ↔ Anthropic conversion
+- ✅ AI provider integration with OpenAI and Anthropic SDKs
+- ✅ Authentication/authorization library (optional, configurable)
+- ✅ All 7 integration test scenarios implemented (54 tests)
+- ✅ All 4 CLI tools implemented (soapy-health, soapy-git, soapy-convert, soapy-ai)
+- ⚠️ SOAP operations: 6 of 8 implemented (CommitFile and GetFile defined in WSDL, awaiting implementation)
 
 ### Next Steps
 
-- [ ] Implement git-storage library for actual Git operations
-- [ ] Add format-converter library for OpenAI ↔ Anthropic conversion
-- [ ] Implement remaining 6 integration test scenarios
-- [ ] Add 3 more CLI tools (soapy-git, soapy-convert, soapy-ai)
-- [ ] Implement AI provider integration
-- [ ] Add authentication/authorization
-- [ ] Add file attachment support
+- [ ] Implement file attachment operations (CommitFile, GetFile)
 - [ ] Production deployment configuration
+- [ ] Enhanced monitoring and observability features
+- [ ] Performance optimization for large conversations
+- [ ] Additional AI provider integrations
 
 ### File Statistics
 
