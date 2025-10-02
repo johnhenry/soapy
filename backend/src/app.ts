@@ -17,6 +17,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(cors, {
     origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   });
 
   // Register optional authentication plugin

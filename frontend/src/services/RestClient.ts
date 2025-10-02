@@ -43,8 +43,9 @@ export class RestClient {
     return response.json();
   }
 
-  async getMessages(id: string, format: OutputFormat = 'openai'): Promise<Message[]> {
-    const response = await this.fetch(`/v1/chat/${id}?format=${format}`);
+  async getMessages(id: string, format: OutputFormat = 'openai', branch?: string): Promise<Message[]> {
+    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
+    const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}`);
     const data = await response.json();
     return data.messages || [];
   }

@@ -39,7 +39,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     try {
       setLoading(true);
       setError(null);
-      const msgs = await client.getMessages(conversationId, config.format);
+      const msgs = await client.getMessages(conversationId, config.format, currentBranch !== 'main' ? currentBranch : undefined);
       setMessages(msgs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');

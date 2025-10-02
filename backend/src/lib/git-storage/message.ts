@@ -65,8 +65,11 @@ export async function getMessages(
 ): Promise<Message[]> {
   const dir = join(CONVERSATIONS_DIR, conversationId);
 
+  // Get current branch so we can restore it
+  const originalBranch = await git.currentBranch({ fs, dir });
+
   // Checkout branch if specified
-  if (branch) {
+  if (branch && branch !== originalBranch) {
     await git.checkout({ fs, dir, ref: branch });
   }
 
@@ -84,6 +87,11 @@ export async function getMessages(
     if (message) {
       messages.push(message);
     }
+  }
+
+  // Restore original branch
+  if (branch && branch !== originalBranch && originalBranch) {
+    await git.checkout({ fs, dir, ref: originalBranch });
   }
 
   return messages;

@@ -92,6 +92,29 @@ export class GitStorage {
       return false;
     }
   }
+
+  async listConversations(): Promise<Conversation[]> {
+    try {
+      const entries = await fs.promises.readdir(this.conversationsDir, { withFileTypes: true });
+      const conversations: Conversation[] = [];
+
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith('conv-')) {
+          const conv = await this.getConversation(entry.name);
+          if (conv) {
+            conversations.push(conv);
+          }
+        }
+      }
+
+      // Sort by creation date, most recent first
+      conversations.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      return conversations;
+    } catch {
+      return [];
+    }
+  }
 }
 
 export const gitStorage = new GitStorage();

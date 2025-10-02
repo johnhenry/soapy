@@ -13,11 +13,32 @@ export async function createBranch(
 ): Promise<{ branchRef: string; createdAt: Date }> {
   const dir = join(CONVERSATIONS_DIR, conversationId);
 
-  // Create Git branch
-  const ref = `refs/heads/${branchName}`;
-  await git.branch({ fs, dir, ref: branchName });
+  // Get all commits in reverse chronological order
+  const commits = await git.log({ fs, dir, depth: 100 });
 
-  // Store branch metadata
+  // Find the commit for the specified message number
+  // Message commits have format "Add message N: role"
+  let targetCommit = commits[0].oid; // Default to latest
+
+  for (const commit of commits) {
+    const match = commit.commit.message.match(/^Add message (\d+):/);
+    if (match) {
+      const msgNum = parseInt(match[1], 10);
+      if (msgNum === fromMessageNumber) {
+        targetCommit = commit.oid;
+        break;
+      }
+    }
+  }
+
+  // Create Git branch at the target commit
+  const ref = `refs/heads/${branchName}`;
+  await git.branch({ fs, dir, ref: branchName, checkout: false, object: targetCommit });
+
+  // Switch to main to update metadata (don't pollute the new branch)
+  await git.checkout({ fs, dir, ref: 'main' });
+
+  // Store branch metadata on main branch
   const branchesPath = join(dir, '.soapy-branches.json');
   let branches: Record<string, Branch> = {};
 
@@ -39,7 +60,7 @@ export async function createBranch(
 
   await fs.promises.writeFile(branchesPath, JSON.stringify(branches, null, 2));
 
-  // Commit metadata
+  // Commit metadata on main branch
   await git.add({ fs, dir, filepath: '.soapy-branches.json' });
   await git.commit({
     fs,
@@ -50,6 +71,13 @@ export async function createBranch(
       email: 'system@soapy.local',
     },
   });
+
+  // Ensure we stay on main after creating the branch
+  // (git.checkout above should have done this, but double-check)
+  const currentBranch = await git.currentBranch({ fs, dir });
+  if (currentBranch !== 'main') {
+    await git.checkout({ fs, dir, ref: 'main' });
+  }
 
   return {
     branchRef: ref,
