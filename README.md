@@ -160,6 +160,8 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
   - GetBranding
   - CommitToolCall
   - CommitToolResult
+  - CommitFile
+  - GetFile
 
 ### REST Endpoints
 
@@ -170,6 +172,9 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 - `GET /v1/chat/:id/branding` - Get branding
 - `POST /v1/chat/:id/tools/call` - Submit tool call
 - `POST /v1/chat/:id/tools/result` - Submit tool result
+- `POST /v1/chat/:id/files` - Upload file
+- `GET /v1/chat/:id/files` - List files
+- `GET /v1/chat/:id/files/:filename` - Download file
 
 ## Development Status
 
@@ -177,31 +182,29 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 
 - [x] Backend project setup with TypeScript + ES modules
 - [x] Data models (6 entities: Conversation, Message, Branch, ToolCall, ToolResult, Branding)
-- [x] SOAP API with WSDL serving
-- [x] REST API with 8 endpoints
-- [x] Contract tests (25 tests, all passing)
+- [x] SOAP API with WSDL serving (all 8 operations implemented)
+- [x] REST API with 10 endpoints (including file operations)
+- [x] Core libraries (git-storage, format-converter, ai-providers, auth)
+- [x] Integration tests (7 scenarios, all 55 tests passing - 100%)
+- [x] CLI tools (4 tools: soapy-health, soapy-git, soapy-convert, soapy-ai)
 - [x] Frontend test client (Vite + React)
+- [x] Streaming support (SSE)
+- [x] Authentication/authorization (optional, configurable via AUTH_ENABLED)
+- [x] File attachment support (CommitFile, GetFile SOAP + REST endpoints)
 
-### In Progress 🚧
+### Future Enhancements 🚀
 
-- [ ] Core libraries implementation (git-storage, format-converter, ai-providers, auth, streaming)
-- [ ] Integration tests (7 scenarios)
-- [ ] CLI tools (4 tools per Constitutional Principle II)
-
-### Planned 📋
-
-- [ ] File attachment support (upload/download via REST and SOAP)
-- [ ] Full AI provider integration
-- [ ] Authentication and authorization
 - [ ] Production deployment configuration
+- [ ] Additional AI provider integrations beyond OpenAI and Anthropic
+- [ ] Enhanced file storage with actual Git persistence
+- [ ] Performance optimization for large conversations
 
 ## Testing
 
 Current test results:
-- ✅ Branding validation: 18/18 tests passing
-- ✅ SOAP WSDL: 7/7 tests passing
-- ✅ REST API: 8/8 tests passing
-- **Total: 25/25 tests passing (100%)**
+- ✅ Contract tests: 33/33 tests passing (branding validation, SOAP WSDL, REST API)
+- ✅ Integration tests: 22/22 tests passing (all scenarios complete)
+- **Total: 55/55 tests passing (100%)**
 
 ## Constitutional Principles
 

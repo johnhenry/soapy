@@ -56,13 +56,34 @@ describe('Integration: SOAP Message Submission', () => {
     expect(responseText).toContain('soap:Envelope');
   });
 
-  it.skip('should store message in Git and return commit hash', async () => {
-    // This test is skipped until git-storage library is implemented
-    // When implemented, this should:
-    // 1. Submit message via SOAP
-    // 2. Verify Git commit was created
-    // 3. Verify commit hash is returned
-    // 4. Verify message file exists in Git repo
-    expect(true).toBe(true);
+  it('should return valid commit hash from SOAP submission', async () => {
+    // Submit message via SOAP and verify response structure
+    const soapRequest = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tns="http://soapy.example.com/wsdl/v1">
+  <soap:Body>
+    <tns:CommitMessageRequest>
+      <tns:conversationId>test-conv-456</tns:conversationId>
+      <tns:role>user</tns:role>
+      <tns:content>Test message for commit hash verification</tns:content>
+    </tns:CommitMessageRequest>
+  </soap:Body>
+</soap:Envelope>`;
+
+    const response = await fetch(`${baseUrl}/soap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml' },
+      body: soapRequest,
+    });
+
+    expect(response.status).toBe(200);
+    const responseText = await response.text();
+    
+    // Verify SOAP response structure
+    expect(responseText).toContain('soap:Envelope');
+    expect(responseText).toContain('CommitMessageResponse');
+    expect(responseText).toContain('commitHash');
+    expect(responseText).toContain('sequenceNumber');
+    expect(responseText).toContain('timestamp');
   });
 });

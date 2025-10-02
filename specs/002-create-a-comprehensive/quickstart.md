@@ -72,8 +72,8 @@ npm run start:backend
 ```bash
 curl http://localhost:3000/soap?wsdl
 
-# Expected: XML WSDL document with 6 operations
-# Should see: CommitMessage, BranchConversation, GetConversation, etc.
+# Expected: XML WSDL document with 8 operations
+# Should see: CommitMessage, BranchConversation, GetConversation, CommitFile, GetFile, etc.
 ```
 
 ### 4.2 Submit Message via SOAP

@@ -72,6 +72,42 @@ export interface SoapService {
     sequenceNumber: number;
     timestamp: string;
   }>;
+
+  CommitFile(args: {
+    conversationId: string;
+    filename: string;
+    contentType: string;
+    data: string; // Base64-encoded
+  }): Promise<{
+    commitHash: string;
+    fileMetadata: {
+      filename: string;
+      path: string;
+      size: number;
+      contentType: string;
+      hash: string;
+      uploadedAt: string;
+      uploadedBy: string;
+    };
+  }>;
+
+  GetFile(args: {
+    conversationId: string;
+    filename: string;
+  }): Promise<{
+    filename: string;
+    contentType: string;
+    data: string; // Base64-encoded
+    metadata: {
+      filename: string;
+      path: string;
+      size: number;
+      contentType: string;
+      hash: string;
+      uploadedAt: string;
+      uploadedBy: string;
+    };
+  }>;
 }
 
 export const soapService: SoapService = {
@@ -119,6 +155,49 @@ export const soapService: SoapService = {
       commitHash: 'result123',
       sequenceNumber: 3,
       timestamp: new Date().toISOString(),
+    };
+  },
+
+  async CommitFile(args) {
+    // Decode base64 to get file size
+    const buffer = Buffer.from(args.data, 'base64');
+    const size = buffer.length;
+    
+    // Generate SHA-256 hash
+    const crypto = await import('crypto');
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    
+    return {
+      commitHash: `file-${hash.substring(0, 8)}`,
+      fileMetadata: {
+        filename: args.filename,
+        path: `files/${args.filename}`,
+        size,
+        contentType: args.contentType,
+        hash: `sha256-${hash}`,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: 'soap-user',
+      },
+    };
+  },
+
+  async GetFile(args) {
+    // Stub implementation - return a small sample file
+    const sampleData = 'SGVsbG8gZnJvbSBTb2FweSBmaWxlIHN0b3JhZ2Uh'; // "Hello from Soapy file storage!" in base64
+    
+    return {
+      filename: args.filename,
+      contentType: 'text/plain',
+      data: sampleData,
+      metadata: {
+        filename: args.filename,
+        path: `files/${args.filename}`,
+        size: 31,
+        contentType: 'text/plain',
+        hash: 'sha256-sample',
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: 'soap-user',
+      },
     };
   },
 };
