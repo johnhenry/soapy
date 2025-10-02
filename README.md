@@ -130,6 +130,8 @@ OPENAI_COMPATIBLE_API_KEY=your-api-key  # If required
 
 Any provider supporting OpenAI's chat completion API format will work (e.g., Together AI, Groq, LocalAI, etc.).
 
+📖 **[Full AI Provider Integration Guide](docs/AI_PROVIDERS.md)** - Detailed setup instructions, examples, and troubleshooting for all providers.
+
 ### Testing
 
 ```bash
