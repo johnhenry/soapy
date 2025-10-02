@@ -5,12 +5,9 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { BranchManager } from './BranchManager';
 import { FileUploader } from './FileUploader';
-import { BrandingEditor } from './BrandingEditor';
 import { ToolCallView } from './ToolCallView';
 import type { Message, Branding, ToolCall, ToolResult, ConversationItem } from '../types';
 import './ConversationView.css';
-
-type TabType = 'messages' | 'branding';
 
 interface ConversationViewProps {
   conversationId: string;
@@ -19,9 +16,7 @@ interface ConversationViewProps {
 
 export function ConversationView({ conversationId, onConversationCreated }: ConversationViewProps) {
   const { config } = useApi();
-  const [activeTab, setActiveTab] = useState<TabType>('messages');
   const [items, setItems] = useState<ConversationItem[]>([]);
-  const [branding, setBranding] = useState<Branding | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -35,7 +30,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
   useEffect(() => {
     loadItems();
-    loadBranding();
     loadBranches();
   }, [conversationId, currentBranch]);
 
@@ -49,15 +43,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       setError(err instanceof Error ? err.message : 'Failed to load conversation');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadBranding = async () => {
-    try {
-      const brandingData = await client.getBranding(conversationId);
-      setBranding(brandingData);
-    } catch (err) {
-      console.error('Failed to load branding:', err);
     }
   };
 
@@ -194,10 +179,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     }
   };
 
-  const handleSaveBranding = async (newBranding: Branding) => {
-    setBranding(newBranding);
-  };
-
   const handleBranchFromMessage = async (sequenceNumber: number, branchName: string) => {
     try {
       setError(null);
@@ -235,25 +216,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     }
   };
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: 'messages', label: 'Messages' },
-    { id: 'branding', label: 'Branding' },
-  ];
-
   return (
     <div className="conversation-view">
       <div className="conversation-header">
-        <div className="tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
         <div className="branch-info">
           <div className="branch-selector">
             <label>Branch:</label>
@@ -283,18 +248,16 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       {error && <div className="error-banner">{error}</div>}
 
       <div className="conversation-content">
-        {activeTab === 'messages' && (
-          <>
-            <MessageList
-              conversationId={conversationId}
-              items={items}
-              streaming={streaming}
-              onBranchFromMessage={handleBranchFromMessage}
-              branches={branches}
-              currentBranch={currentBranch}
-              onBranchSwitch={setCurrentBranch}
-            />
-            <div className="ai-controls">
+        <MessageList
+          conversationId={conversationId}
+          items={items}
+          streaming={streaming}
+          onBranchFromMessage={handleBranchFromMessage}
+          branches={branches}
+          currentBranch={currentBranch}
+          onBranchSwitch={setCurrentBranch}
+        />
+        <div className="ai-controls">
               <label>
                 Provider:
                 <select value={selectedProvider} onChange={(e) => {
@@ -331,17 +294,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
                 Streaming {!useStreaming && '(enables tool calls)'}
               </label>
             </div>
-            <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
-          </>
-        )}
-
-        {activeTab === 'branding' && (
-          <BrandingEditor
-            conversationId={conversationId}
-            branding={branding}
-            onSave={handleSaveBranding}
-          />
-        )}
+        <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
       </div>
     </div>
   );
