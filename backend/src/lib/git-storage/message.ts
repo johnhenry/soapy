@@ -339,7 +339,6 @@ function parseMessageFile(content: string, filename: string): Message | null {
     let attachments: Array<{filename: string; contentType: string; size: number; path: string}> = [];
 
     // Simple YAML parsing - handles attachments array
-    let currentKey: string | null = null;
     let inAttachments = false;
     let currentAttachment: any = {};
 

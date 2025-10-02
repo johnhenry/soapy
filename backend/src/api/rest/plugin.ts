@@ -87,103 +87,8 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         attachments: body.attachments,
       }, body.branch);
 
-      // If user message, generate AI response
-      if (body.role === 'user') {
-        try {
-          // Use requested provider or fall back to available ones
-          let aiResponse;
-          let provider = body.provider || 'openai';
-          let model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
-
-          // Try requested provider first
-          if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
-            // Add example tools for demonstration
-            const tools = [
-              {
-                name: 'get_current_time',
-                description: 'Get the current time in a specific timezone. ALWAYS use this tool when asked about the current time.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    timezone: {
-                      type: 'string',
-                      description: 'The timezone, e.g. America/Los_Angeles, America/New_York, Europe/London',
-                    },
-                  },
-                  required: ['timezone'],
-                },
-              },
-              {
-                name: 'search_database',
-                description: 'Search a database for information. Use this when asked to look up data.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    query: {
-                      type: 'string',
-                      description: 'The search query',
-                    },
-                    limit: {
-                      type: 'number',
-                      description: 'Maximum number of results',
-                    },
-                  },
-                  required: ['query'],
-                },
-              },
-            ];
-            aiResponse = await aiOrchestrator.generate('openai', body.content, { tools, model });
-            console.log('AI Response:', JSON.stringify(aiResponse, null, 2));
-          } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
-            // Anthropic with tools
-            const tools = [
-              {
-                name: 'get_weather',
-                description: 'Get the current weather for a specific location. This tool provides real-time weather data including temperature, conditions, and forecast.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    location: {
-                      type: 'string',
-                      description: 'The city and state or country, e.g. "San Francisco, CA" or "London, UK"',
-                    },
-                    unit: {
-                      type: 'string',
-                      enum: ['celsius', 'fahrenheit'],
-                      description: 'Temperature unit to use',
-                    },
-                  },
-                  required: ['location'],
-                },
-              },
-            ];
-            console.log('Sending to Anthropic with tools:', JSON.stringify(tools, null, 2));
-            aiResponse = await aiOrchestrator.generate('anthropic', body.content, { tools, model });
-            console.log('Anthropic response received:', JSON.stringify(aiResponse, null, 2));
-          } else {
-            // No AI provider available, just return user message stored
-            return reply.code(201).send({
-              conversationId: id,
-              sequenceNumber: result.sequenceNumber,
-              commitHash: result.commitHash,
-              timestamp: result.timestamp.toISOString(),
-            });
-          }
-
-          // Store assistant response (on same branch)
-          await commitMessage(id, {
-            role: 'assistant',
-            content: aiResponse.content,
-            timestamp: new Date(),
-            aiProvider: provider,
-            model: aiResponse.model || model,
-            toolCalls: aiResponse.toolCalls,
-          }, body.branch);
-        } catch (error) {
-          console.error('AI generation error:', error);
-          // Continue even if AI fails - user message is already stored
-        }
-      }
+      // Note: AI response generation is now handled by POST /v1/chat/:id/completion
+      // This endpoint only stores messages
     } finally {
       // Always return to main branch after message operations
       if (body.branch) {
@@ -222,12 +127,29 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       const provider = body.provider || 'openai';
       const model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
 
-      // Get conversation messages
-      const messages = await getMessages(id, body.branch);
+      // Get conversation items (messages + tool calls + tool results)
+      const items = await getConversationItems(id, body.branch);
 
-      if (messages.length === 0) {
+      if (items.length === 0) {
         reply.code(400).send({ error: 'No messages in conversation' });
         return;
+      }
+
+      // Helper function to read file attachments
+      const fs = await import('fs');
+      const { join } = await import('path');
+      const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+      const conversationDir = join(CONVERSATIONS_DIR, id);
+
+      async function readAttachment(filename: string): Promise<string | null> {
+        try {
+          const filePath = join(conversationDir, 'files', filename);
+          const buffer = await fs.promises.readFile(filePath);
+          return buffer.toString('base64');
+        } catch (error) {
+          console.error('Failed to read attachment:', filename, error);
+          return null;
+        }
       }
 
       // Get available tools
@@ -257,6 +179,53 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       let toolCalls: any[] = [];
       let usedModel = model;
 
+      // Format messages for OpenAI (with vision support and tool calls/results)
+      const openaiMessages: any[] = [];
+      for (const item of items) {
+        if (item.itemType === 'message') {
+          const message = item as any;
+
+          // If message has attachments (images), format as vision content
+          if (message.attachments && message.attachments.length > 0) {
+            const contentParts: any[] = [{ type: 'text', text: message.content }];
+
+            for (const attachment of message.attachments) {
+              // Only include images for vision
+              if (attachment.contentType.startsWith('image/')) {
+                const base64Data = await readAttachment(attachment.filename);
+                if (base64Data) {
+                  contentParts.push({
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${attachment.contentType};base64,${base64Data}`
+                    }
+                  });
+                }
+              }
+            }
+
+            openaiMessages.push({
+              role: message.role,
+              content: contentParts
+            });
+          } else {
+            openaiMessages.push({
+              role: message.role,
+              content: message.content
+            });
+          }
+        } else if (item.itemType === 'tool_result') {
+          // Add tool result as a tool message
+          const toolResult = item as any;
+          openaiMessages.push({
+            role: 'tool',
+            tool_call_id: `call_${toolResult.toolCallRef}`,
+            content: JSON.stringify(toolResult.result)
+          });
+        }
+        // Note: tool_call items are embedded in assistant messages, handled by OpenAI's tool_calls field
+      }
+
       // Call AI provider with tool support
       if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
         const OpenAI = (await import('openai')).default;
@@ -264,7 +233,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
         const completion = await openai.chat.completions.create({
           model,
-          messages: messages.map(m => ({ role: m.role as any, content: m.content })),
+          messages: openaiMessages,
           tools: tools.map(t => ({
             type: 'function' as const,
             function: {
@@ -287,10 +256,61 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+        // Format messages for Anthropic (with vision support and tool calls/results)
+        const anthropicMessages: any[] = [];
+        for (const item of items) {
+          if (item.itemType === 'message') {
+            const message = item as any;
+
+            // If message has attachments (images), format as vision content
+            if (message.attachments && message.attachments.length > 0) {
+              const contentParts: any[] = [{ type: 'text', text: message.content }];
+
+              for (const attachment of message.attachments) {
+                // Only include images for vision
+                if (attachment.contentType.startsWith('image/')) {
+                  const base64Data = await readAttachment(attachment.filename);
+                  if (base64Data) {
+                    contentParts.push({
+                      type: 'image',
+                      source: {
+                        type: 'base64',
+                        media_type: attachment.contentType,
+                        data: base64Data
+                      }
+                    });
+                  }
+                }
+              }
+
+              anthropicMessages.push({
+                role: message.role,
+                content: contentParts
+              });
+            } else {
+              anthropicMessages.push({
+                role: message.role,
+                content: message.content
+              });
+            }
+          } else if (item.itemType === 'tool_result') {
+            // Add tool result
+            const toolResult = item as any;
+            anthropicMessages.push({
+              role: 'user',
+              content: [{
+                type: 'tool_result',
+                tool_use_id: `toolu_${toolResult.toolCallRef}`,
+                content: JSON.stringify(toolResult.result)
+              }]
+            });
+          }
+        }
+
         const response = await anthropic.messages.create({
           model,
           max_tokens: 1000,
-          messages: messages.map(m => ({ role: m.role as any, content: m.content })),
+          messages: anthropicMessages,
           tools: tools.map(t => ({
             name: t.name,
             description: t.description,
@@ -298,7 +318,8 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           }))
         });
 
-        assistantContent = response.content.find((c: any) => c.type === 'text')?.text || '';
+        const textContent = response.content.find((c: any) => c.type === 'text') as any;
+        assistantContent = textContent?.text || '';
         toolCalls = response.content.filter((c: any) => c.type === 'tool_use').map((tc: any) => ({
           name: tc.name,
           parameters: tc.input
@@ -333,7 +354,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             toolName: toolCall.name,
             parameters: toolCall.parameters,
             requestedAt: new Date(),
-          }, body.branch);
+          });
 
           // Execute tool (mock for now)
           let toolResult: any = {};
@@ -355,7 +376,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             executedAt: new Date(),
             status,
             retryCount: 0,
-          }, body.branch);
+          });
 
           results.toolCalls.push({
             sequenceNumber: toolCallResult.sequenceNumber,
@@ -405,7 +426,8 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             ]
           });
 
-          finalResponse = response.content.find((c: any) => c.type === 'text')?.text || '';
+          const finalTextContent = response.content.find((c: any) => c.type === 'text') as any;
+          finalResponse = finalTextContent?.text || '';
         }
 
         // Store final assistant response
@@ -772,6 +794,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     const { id, filename } = request.params as { id: string; filename: string };
 
     try {
+      const { join } = await import('path');
       const conversationDir = join(process.cwd(), 'conversations', id);
       const filePath = join(conversationDir, 'files', filename);
 
