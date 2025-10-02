@@ -155,7 +155,7 @@ npm run health
 ```
 
 Expected output:
-- WSDL: Valid XML document with 6 operations
+- WSDL: Valid XML document with 8 operations
 - REST: JSON response with branding data
 - Health: All checks passing ✅
 

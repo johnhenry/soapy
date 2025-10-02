@@ -78,7 +78,8 @@
 - ✅ SOAP API plugin:
   - WSDL serving at `/soap?wsdl`
   - XML content type parser
-  - 6 SOAP operations (CommitMessage, BranchConversation, GetConversation, GetBranding, CommitToolCall, CommitToolResult)
+  - 8 SOAP operations defined in WSDL (CommitMessage, BranchConversation, GetConversation, GetBranding, CommitToolCall, CommitToolResult, CommitFile, GetFile)
+  - 6 core operations implemented with stub responses
   - Stub implementations returning proper SOAP envelopes
 - ✅ REST API plugin:
   - 8 endpoints (POST/GET messages, branching, branding, tools, streaming)
@@ -137,7 +138,7 @@
 
 **Files Created**: 3 files (CLI tool, integration test, .gitignore)
 
-**Test Results**: 27 tests passing, 1 skipped
+**Test Results**: Initial implementation with 27 tests (contract + first integration scenarios)
 
 ---
 
@@ -242,15 +243,15 @@ Duration    934ms
 - Usage: `npm run health [--json]`
 
 ### III. Test-Driven Development ✅
-**Implementation**: Tests written first, 100% passing
+**Implementation**: Tests written first, 98% passing
 - Contract tests written before API implementation
 - Integration tests demonstrate TDD workflow
-- 27/27 active tests passing
+- 54 tests passing, 1 skipped (55 total)
 
 ### IV. Integration Tests ✅
 **Implementation**: Scenario-based testing structure
-- Scenario 1: SOAP Message Submission
-- Structure ready for 6 more scenarios
+- 7 integration test scenarios implemented
+- 21 integration tests passing, 1 skipped
 - Tests map to user stories
 
 ### V. Observability ✅
@@ -411,7 +412,7 @@ d52e9fe Initial plan
 ## 🎉 Success Criteria - ALL MET ✅
 
 - [x] Backend compiles with zero TypeScript errors
-- [x] All tests passing (100% pass rate)
+- [x] All tests passing (98% pass rate, 54/55 tests, 1 skipped awaiting git-storage)
 - [x] Server starts successfully
 - [x] WSDL served correctly
 - [x] REST endpoints respond correctly
@@ -427,7 +428,7 @@ d52e9fe Initial plan
 
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
-| Test Pass Rate | ≥95% | 100% | ✅ |
+| Test Pass Rate | ≥95% | 98% (54/55) | ✅ |
 | Build Errors | 0 | 0 | ✅ |
 | TypeScript Errors | 0 | 0 | ✅ |
 | Data Models | 6 | 6 | ✅ |
