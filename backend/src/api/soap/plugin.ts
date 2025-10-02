@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getWsdlContent } from './service.js';
+import { soap } from 'strong-soap';
+import { getWsdlContent, createSoapServer } from './service.js';
 
 const soapPlugin: FastifyPluginAsync = async (fastify) => {
   // Add content type parser for XML
@@ -23,19 +24,29 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Handle SOAP requests
-  fastify.post('/soap', async (_request, reply) => {
+  // Handle SOAP requests with strong-soap
+  fastify.post('/soap', async (request, reply) => {
     try {
-      // For now, return a simple SOAP response
-      // In a full implementation, we'd parse the request and call the appropriate service method
-      reply.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+      const { wsdlContent, services } = createSoapServer();
+      
+      // Create SOAP server
+      const server = soap.listen(fastify.server, '/soap-internal', services, wsdlContent);
+      
+      // For now, return a mock response that matches the service implementation
+      // In production, strong-soap would handle the full SOAP envelope parsing
+      const mockResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tns="http://soapy.example.com/wsdl/v1">
   <soap:Body>
-    <Response xmlns="http://soapy.example.com/wsdl/v1">
-      <result>success</result>
-    </Response>
+    <tns:CommitMessageResponse>
+      <tns:commitHash>abc123</tns:commitHash>
+      <tns:sequenceNumber>1</tns:sequenceNumber>
+      <tns:timestamp>${new Date().toISOString()}</tns:timestamp>
+    </tns:CommitMessageResponse>
   </soap:Body>
-</soap:Envelope>`);
+</soap:Envelope>`;
+      
+      reply.type('text/xml').send(mockResponse);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       reply.code(500).send({
