@@ -2,6 +2,15 @@
 
 All notable changes to the Soapy project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- ✅ Swagger/OpenAPI documentation endpoints
+  - `GET /docs` - Interactive Swagger UI
+  - `GET /docs/json` - OpenAPI 3.0 specification (JSON)
+  - Automatically loads OpenAPI spec from `specs/002-create-a-comprehensive/contracts/openapi.yaml`
+  - 6 new contract tests for Swagger endpoints (total: 61 tests passing)
+
 ## [0.1.0] - 2025-10-01
 
 ### Initial Implementation
