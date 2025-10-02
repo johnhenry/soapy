@@ -1,7 +1,5 @@
 export type MessageRole = 'user' | 'assistant' | 'system';
 
-export type OutputFormat = 'openai' | 'anthropic' | 'soap';
-
 export interface Message {
   sequenceNumber: number;
   role: MessageRole;
@@ -86,6 +84,5 @@ export interface FileAttachment {
 export interface ApiConfig {
   apiKey: string;
   baseUrl: string;
-  format: OutputFormat;
   protocol: 'rest' | 'soap';
 }

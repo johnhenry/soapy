@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import { RestClient } from '../services/RestClient';
+import { ApiClient } from '../services/ApiClient';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { BranchManager } from './BranchManager';
@@ -26,7 +26,12 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [useStreaming, setUseStreaming] = useState(true);
 
-  const client = new RestClient(config.baseUrl, config.apiKey);
+  const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.protocol));
+
+  useEffect(() => {
+    // Update client protocol when it changes
+    client.setProtocol(config.protocol);
+  }, [config.protocol, client]);
 
   useEffect(() => {
     loadItems();
@@ -37,7 +42,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     try {
       setLoading(true);
       setError(null);
-      const conversationItems = await client.getConversationItems(conversationId, config.format, currentBranch !== 'main' ? currentBranch : undefined);
+      const conversationItems = await client.getConversationItems(conversationId, currentBranch !== 'main' ? currentBranch : undefined);
       setItems(conversationItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation');

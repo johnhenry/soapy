@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import type { OutputFormat } from '../types';
 import './ApiSettings.css';
 
 interface ApiSettingsProps {
@@ -8,23 +7,20 @@ interface ApiSettingsProps {
 }
 
 export function ApiSettings({ onClose }: ApiSettingsProps) {
-  const { config, setApiKey, setFormat, setProtocol } = useApi();
+  const { config, setApiKey, setProtocol } = useApi();
   const [apiKey, setApiKeyLocal] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  const [format, setFormatLocal] = useState<OutputFormat>('openai');
   const [protocol, setProtocolLocal] = useState<'rest' | 'soap'>('rest');
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setApiKeyLocal(config.apiKey);
     setBaseUrl(config.baseUrl);
-    setFormatLocal(config.format);
     setProtocolLocal(config.protocol);
   }, [config]);
 
   const handleSave = () => {
     setApiKey(apiKey);
-    setFormat(format);
     setProtocol(protocol);
     onClose();
   };
@@ -89,22 +85,12 @@ export function ApiSettings({ onClose }: ApiSettingsProps) {
           </div>
 
           <div className="form-group">
-            <label>Output Format</label>
-            <select value={format} onChange={(e) => setFormatLocal(e.target.value as OutputFormat)}>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="soap">SOAP</option>
-            </select>
-            <p className="help-text">Message format for API responses</p>
-          </div>
-
-          <div className="form-group">
             <label>Protocol</label>
             <select value={protocol} onChange={(e) => setProtocolLocal(e.target.value as 'rest' | 'soap')}>
               <option value="rest">REST</option>
               <option value="soap">SOAP</option>
             </select>
-            <p className="help-text">Communication protocol</p>
+            <p className="help-text">Communication protocol (REST or SOAP)</p>
           </div>
         </div>
 

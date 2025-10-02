@@ -1,6 +1,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useApi } from '../context/ApiContext';
-import { RestClient } from '../services/RestClient';
+import { ApiClient } from '../services/ApiClient';
 import './ConversationList.css';
 
 interface ConversationListProps {
@@ -36,7 +36,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
     setLoading(true);
     setError(null);
     try {
-      const client = new RestClient(config.baseUrl, config.apiKey);
+      const client = new ApiClient(config.baseUrl, config.apiKey, config.protocol);
       const convList = await client.listConversations();
       setConversations(convList);
     } catch (err) {
@@ -70,7 +70,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
     if (!deleteConfirm) return;
 
     try {
-      const client = new RestClient(config.baseUrl, config.apiKey);
+      const client = new ApiClient(config.baseUrl, config.apiKey, config.protocol);
       await client.deleteConversation(deleteConfirm.id);
 
       // If deleted conversation was selected, clear selection

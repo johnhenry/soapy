@@ -10,6 +10,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = 'file-input-' + Math.random().toString(36).substr(2, 9);
 
   const handleSend = () => {
     if (!content.trim() && files.length === 0) return;
@@ -33,6 +34,18 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
 
   const removeFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index));
+  };
+
+  const handleAttachClick = () => {
+    console.log('Attach button clicked', fileInputRef.current);
+    // Try both ref and direct DOM query
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      const input = document.getElementById(fileInputId) as HTMLInputElement;
+      console.log('Fallback to getElementById:', input);
+      input?.click();
+    }
   };
 
   return (
@@ -65,6 +78,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         />
         <div className="input-actions">
           <input
+            id={fileInputId}
             ref={fileInputRef}
             type="file"
             multiple
@@ -74,7 +88,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
           <button
             type="button"
             className="secondary small"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleAttachClick}
             disabled={disabled}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
