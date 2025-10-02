@@ -26,7 +26,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('main');
-  const [branches, setBranches] = useState<string[]>(['main']);
+  const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
   const [selectedProvider, setSelectedProvider] = useState<'openai' | 'anthropic'>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [useStreaming, setUseStreaming] = useState(true);
@@ -64,8 +64,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const loadBranches = async () => {
     try {
       const branchList = await client.getBranches(conversationId);
-      const branchNames = ['main', ...branchList.map(b => b.name)];
-      setBranches(branchNames);
+      setBranches(branchList);
     } catch (err) {
       console.error('Failed to load branches:', err);
     }
@@ -259,8 +258,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           <div className="branch-selector">
             <label>Branch:</label>
             <select value={currentBranch} onChange={(e) => setCurrentBranch(e.target.value)}>
+              <option value="main">main</option>
               {branches.map((branch) => (
-                <option key={branch} value={branch}>{branch}</option>
+                <option key={branch.name} value={branch.name}>{branch.name}</option>
               ))}
             </select>
             {currentBranch !== 'main' && (
@@ -290,6 +290,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
               items={items}
               streaming={streaming}
               onBranchFromMessage={handleBranchFromMessage}
+              branches={branches}
+              currentBranch={currentBranch}
+              onBranchSwitch={setCurrentBranch}
             />
             <div className="ai-controls">
               <label>

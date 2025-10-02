@@ -130,6 +130,57 @@
   }
 }
 
+.branch-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.branch-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.branch-icon {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+.inline-branch-selector {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  max-width: 150px;
+}
+
+.inline-branch-selector:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+}
+
+.inline-branch-selector:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.message-user .inline-branch-selector {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.message-user .inline-branch-selector:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .branch-btn {
   background: transparent;
   border: none;

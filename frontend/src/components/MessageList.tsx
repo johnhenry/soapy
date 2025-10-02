@@ -9,15 +9,26 @@ interface MessageListProps {
   items?: ConversationItem[];
   streaming?: boolean;
   onBranchFromMessage?: (sequenceNumber: number, branchName: string) => Promise<void>;
+  branches?: Array<{ name: string; sourceMessageNumber: number }>;
+  currentBranch?: string;
+  onBranchSwitch?: (branchName: string) => void;
 }
 
-export function MessageList({ conversationId, messages, items, streaming, onBranchFromMessage }: MessageListProps) {
+export function MessageList({ conversationId, messages, items, streaming, onBranchFromMessage, branches = [], currentBranch = 'main', onBranchSwitch }: MessageListProps) {
   const { config } = useApi();
   // Use items if provided, otherwise fall back to messages for backward compatibility
   const displayItems = items || (messages || []).map(m => ({ ...m, itemType: 'message' as const }));
   const [branchingFrom, setBranchingFrom] = useState<number | null>(null);
   const [branchName, setBranchName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Build a map of sequence number -> branches that originate from that point
+  const branchesBySequence = branches.reduce((acc, branch) => {
+    const seqNum = branch.sourceMessageNumber;
+    if (!acc[seqNum]) acc[seqNum] = [];
+    acc[seqNum].push(branch.name);
+    return acc;
+  }, {} as Record<number, string[]>);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,15 +73,42 @@ export function MessageList({ conversationId, messages, items, streaming, onBran
                 </span>
               )}
             </span>
-            {onBranchFromMessage && (
-              <button
-                className="branch-btn"
-                onClick={() => handleBranchClick(item.sequenceNumber)}
-                title="Branch from this message"
-              >
-                🌿
-              </button>
-            )}
+            <div className="branch-controls">
+              {branchesBySequence[item.sequenceNumber] && branchesBySequence[item.sequenceNumber].length > 0 && onBranchSwitch && (
+                <div className="branch-indicator">
+                  <span className="branch-icon" title={`${branchesBySequence[item.sequenceNumber].length} branch(es) diverge from here`}>
+                    🔀
+                  </span>
+                  <select
+                    className="inline-branch-selector"
+                    onChange={(e) => {
+                      const selectedBranch = e.target.value;
+                      if (selectedBranch && onBranchSwitch) {
+                        onBranchSwitch(selectedBranch);
+                      }
+                      // Reset to default after selection
+                      e.target.value = '';
+                    }}
+                    title="Jump to a branch that diverged from this message"
+                    defaultValue=""
+                  >
+                    <option value="">→ {branchesBySequence[item.sequenceNumber].join(', ')}</option>
+                    {branchesBySequence[item.sequenceNumber].map(branchName => (
+                      <option key={branchName} value={branchName}>{branchName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {onBranchFromMessage && (
+                <button
+                  className="branch-btn"
+                  onClick={() => handleBranchClick(item.sequenceNumber)}
+                  title="Create new branch from this message"
+                >
+                  🌿
+                </button>
+              )}
+            </div>
           </div>
           <div className="message-content">{item.content}</div>
           {item.attachments && item.attachments.length > 0 && conversationId && (
@@ -128,15 +166,30 @@ export function MessageList({ conversationId, messages, items, streaming, onBran
                 </span>
               )}
             </span>
-            {onBranchFromMessage && (
-              <button
-                className="branch-btn"
-                onClick={() => handleBranchClick(item.sequenceNumber)}
-                title="Branch from this point"
-              >
-                🌿
-              </button>
-            )}
+            <div className="branch-controls">
+              {branchesBySequence[item.sequenceNumber] && branchesBySequence[item.sequenceNumber].length > 0 && onBranchSwitch && (
+                <select
+                  className="inline-branch-selector"
+                  value={currentBranch}
+                  onChange={(e) => onBranchSwitch(e.target.value)}
+                  title="Switch to a branch from this point"
+                >
+                  <option value="">Jump to branch...</option>
+                  {branchesBySequence[item.sequenceNumber].map(branchName => (
+                    <option key={branchName} value={branchName}>{branchName}</option>
+                  ))}
+                </select>
+              )}
+              {onBranchFromMessage && (
+                <button
+                  className="branch-btn"
+                  onClick={() => handleBranchClick(item.sequenceNumber)}
+                  title="Branch from this point"
+                >
+                  🌿
+                </button>
+              )}
+            </div>
           </div>
           <div className="tool-call-content">
             <div className="tool-call-name">{item.toolName}</div>
@@ -175,15 +228,30 @@ export function MessageList({ conversationId, messages, items, streaming, onBran
                 </span>
               )}
             </span>
-            {onBranchFromMessage && (
-              <button
-                className="branch-btn"
-                onClick={() => handleBranchClick(item.sequenceNumber)}
-                title="Branch from this point"
-              >
-                🌿
-              </button>
-            )}
+            <div className="branch-controls">
+              {branchesBySequence[item.sequenceNumber] && branchesBySequence[item.sequenceNumber].length > 0 && onBranchSwitch && (
+                <select
+                  className="inline-branch-selector"
+                  value={currentBranch}
+                  onChange={(e) => onBranchSwitch(e.target.value)}
+                  title="Switch to a branch from this point"
+                >
+                  <option value="">Jump to branch...</option>
+                  {branchesBySequence[item.sequenceNumber].map(branchName => (
+                    <option key={branchName} value={branchName}>{branchName}</option>
+                  ))}
+                </select>
+              )}
+              {onBranchFromMessage && (
+                <button
+                  className="branch-btn"
+                  onClick={() => handleBranchClick(item.sequenceNumber)}
+                  title="Branch from this point"
+                >
+                  🌿
+                </button>
+              )}
+            </div>
           </div>
           <div className="tool-result-content">
             <pre className="tool-result-data">{JSON.stringify(item.result, null, 2)}</pre>
