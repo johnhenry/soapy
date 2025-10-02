@@ -29,14 +29,16 @@ This is the first implementation of the Soapy project, built following the GitHu
 #### SOAP API
 - ✅ WSDL contract serving at `/soap?wsdl`
 - ✅ XML content type support
-- ✅ 6 SOAP operations defined:
+- ✅ 8 SOAP operations defined:
   - CommitMessage
   - BranchConversation
   - GetConversation
   - GetBranding
   - CommitToolCall
   - CommitToolResult
-- ✅ Stub implementations returning proper SOAP responses
+  - CommitFile (for file uploads)
+  - GetFile (for file downloads)
+- ✅ Stub implementations returning proper SOAP responses for 6 core operations
 
 #### REST API
 - ✅ 8 REST endpoints implemented:
@@ -50,12 +52,19 @@ This is the first implementation of the Soapy project, built following the GitHu
   - `GET /soap?wsdl` - Get WSDL contract
 
 #### Testing
-- ✅ 25 contract tests (100% passing):
+- ✅ 33 contract tests (100% passing):
   - 18 branding validation tests
   - 7 SOAP WSDL tests
-  - 8 REST API tests (including 8 endpoint tests)
-- ✅ 1 integration test scenario (Scenario 1: SOAP Message Submission)
-- ✅ Total: 27/27 active tests passing (1 test skipped awaiting git-storage)
+  - 8 REST API tests
+- ✅ 21 integration tests (100% passing):
+  - Scenario 1: SOAP Message Submission (2 tests)
+  - Scenario 2: REST Retrieval (4 tests)
+  - Scenario 3: Streaming (4 tests)
+  - Scenario 4: Branching (4 tests)
+  - Scenario 5: Tools (3 tests)
+  - Scenario 6: Branding (2 tests)
+  - Scenario 7: Error Handling (2 tests)
+- ✅ Total: 54 tests passing, 1 skipped (55 total)
 
 #### CLI Tools (Constitutional Principle II)
 - ✅ `soapy-health` - Health check CLI tool

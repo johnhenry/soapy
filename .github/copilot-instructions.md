@@ -1,7 +1,7 @@
 # Copilot Instructions for Soapy
 
 **Last Updated**: 2025-10-01
-**Status**: ✅ MVP COMPLETE - 27/27 tests passing
+**Status**: ✅ MVP COMPLETE - 54 tests passing, 1 skipped (55 total)
 **Project Type**: Hybrid SOAP/REST AI API System with Git-backed storage
 
 ## Tech Stack
@@ -125,7 +125,7 @@ cd frontend && npm install
 ## API Endpoints
 
 **SOAP** (POST /soap):
-- CommitMessage, BranchConversation, GetConversation, GetBranding, CommitToolCall, CommitToolResult
+- CommitMessage, BranchConversation, GetConversation, GetBranding, CommitToolCall, CommitToolResult, CommitFile, GetFile
 - WSDL available at `/soap?wsdl`
 
 **REST**:
@@ -139,14 +139,21 @@ cd frontend && npm install
 
 ## Testing
 
-**Contract Tests** (25 tests):
+**Contract Tests** (33 tests):
 - Branding validation: HTTPS URLs, hex colors (18 tests)
 - SOAP WSDL validation (7 tests)
+- REST API validation (8 tests)
 
-**Integration Tests** (2 active, 1 skipped):
-- Scenario 1: SOAP message submission
-- Scenario 7: Error handling
-- 5 additional scenarios awaiting git-storage implementation
+**Integration Tests** (21 tests passing, 1 skipped):
+- Scenario 1: SOAP message submission (2 tests)
+- Scenario 2: REST retrieval (4 tests)
+- Scenario 3: Streaming (4 tests)
+- Scenario 4: Branching (4 tests)
+- Scenario 5: Tools (3 tests)
+- Scenario 6: Branding (2 tests)
+- Scenario 7: Error handling (2 tests)
+
+**Total**: 54 tests passing, 1 skipped (55 total)
 
 Run: `cd backend && npm test`
 
@@ -171,17 +178,16 @@ Run: `cd backend && npm test`
 ✅ **Complete**:
 - Backend setup (TypeScript, Fastify, strong-soap, Vitest)
 - Data models (6 models with validation)
-- SOAP/REST APIs (stub implementations, all contract tests passing)
+- SOAP/REST APIs (stub implementations for 6 core operations, WSDL defines 8 operations)
 - Frontend test client (Vite + React)
 - CLI tools (soapy-health with --json flag)
-- Integration test framework (Scenario 1 + Scenario 7)
+- Integration test framework (7 scenarios with 21 passing tests, 1 skipped)
 - Documentation (README, CHANGELOG, DEPLOYMENT, IMPLEMENTATION_SUMMARY)
 
 🚧 **In Progress** (awaiting future phases):
 - Git storage implementation
 - AI provider integration
-- Streaming implementation
-- 5 additional integration scenarios
+- File upload/download operations (CommitFile and GetFile defined in WSDL, not yet implemented)
 - Authentication implementation
 
 ## Development Notes

@@ -160,6 +160,8 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
   - GetBranding
   - CommitToolCall
   - CommitToolResult
+  - CommitFile
+  - GetFile
 
 ### REST Endpoints
 
@@ -198,10 +200,9 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ## Testing
 
 Current test results:
-- ✅ Branding validation: 18/18 tests passing
-- ✅ SOAP WSDL: 7/7 tests passing
-- ✅ REST API: 8/8 tests passing
-- **Total: 25/25 tests passing (100%)**
+- ✅ Contract tests: 33/33 tests passing (branding validation, SOAP WSDL, REST API)
+- ✅ Integration tests: 21/21 tests passing (1 test skipped)
+- **Total: 54 tests passing, 1 skipped (55 total)**
 
 ## Constitutional Principles
 
