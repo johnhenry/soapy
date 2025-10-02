@@ -10,6 +10,10 @@ export interface Message {
   aiProvider?: string;
   model?: string;
   commitHash: string;
+  toolCalls?: Array<{
+    name: string;
+    arguments: Record<string, unknown>;
+  }>;
 }
 
 export interface Conversation {

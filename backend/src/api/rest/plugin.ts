@@ -75,7 +75,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           // Try OpenAI first, fallback to Anthropic
           let aiResponse;
           let provider = 'openai';
-          let model = 'gpt-4';
+          let model = 'gpt-4o-mini';
 
           if (aiOrchestrator.hasProvider('openai')) {
             aiResponse = await aiOrchestrator.generate('openai', body.content);
@@ -155,9 +155,108 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // GET /v1/chat/:id/stream - Stream conversation
-  fastify.get('/v1/chat/:id/stream', async (_request, reply) => {
-    reply.type('text/event-stream').send('data: {"type":"start"}\n\n');
+  // POST /v1/chat/:id/messages/stream - Submit message with streaming response
+  fastify.post('/v1/chat/:id/messages/stream', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { role: MessageRole; content: string; branch?: string };
+
+    // Create conversation if it doesn't exist
+    if (!(await gitStorage.conversationExists(id))) {
+      await gitStorage.createConversation({
+        id,
+        organizationId: 'default',
+        ownerId: 'default',
+        createdAt: new Date(),
+        mainBranch: 'main',
+        branches: ['main'],
+      });
+    }
+
+    // Set up SSE with CORS headers
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', request.headers.origin || '*');
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    let result;
+    try {
+      // Store user message
+      result = await commitMessage(id, {
+        role: body.role,
+        content: body.content,
+        timestamp: new Date(),
+      }, body.branch);
+
+      // Send user message confirmation
+      reply.raw.write(`data: ${JSON.stringify({ type: 'user_message', sequenceNumber: result.sequenceNumber, commitHash: result.commitHash })}\n\n`);
+
+      // If user message, generate and stream AI response
+      if (body.role === 'user') {
+        try {
+          let provider = 'openai';
+          let fullResponse = '';
+
+          if (aiOrchestrator.hasProvider('openai')) {
+            const aiProvider = aiOrchestrator.getProvider('openai');
+            if (aiProvider) {
+              for await (const chunk of aiProvider.stream(body.content)) {
+                fullResponse += chunk.delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
+
+                if (chunk.done) {
+                  break;
+                }
+              }
+            }
+          } else if (aiOrchestrator.hasProvider('anthropic')) {
+            provider = 'anthropic';
+            const aiProvider = aiOrchestrator.getProvider('anthropic');
+            if (aiProvider) {
+              for await (const chunk of aiProvider.stream(body.content)) {
+                fullResponse += chunk.delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
+
+                if (chunk.done) {
+                  break;
+                }
+              }
+            }
+          } else {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'No AI provider available' })}\n\n`);
+            reply.raw.end();
+            return;
+          }
+
+          // Store assistant response
+          const assistantResult = await commitMessage(id, {
+            role: 'assistant',
+            content: fullResponse,
+            timestamp: new Date(),
+            aiProvider: provider,
+            model: provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022',
+          }, body.branch);
+
+          reply.raw.write(`data: ${JSON.stringify({ type: 'done', sequenceNumber: assistantResult.sequenceNumber, commitHash: assistantResult.commitHash })}\n\n`);
+        } catch (error) {
+          console.error('AI generation error:', error);
+          reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'AI generation failed' })}\n\n`);
+        }
+      } else {
+        reply.raw.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      }
+    } finally {
+      // Return to main branch after message operations
+      if (body.branch) {
+        const git = await import('isomorphic-git');
+        const fs = await import('fs');
+        const { join } = await import('path');
+        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+        const dir = join(CONVERSATIONS_DIR, id);
+        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
+      }
+      reply.raw.end();
+    }
   });
 
   // POST /v1/chat/:id/branch - Create branch
@@ -165,19 +264,33 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
     const body = request.body as { branchName: string; fromMessage: number };
 
-    const result = await createBranch(
-      id,
-      body.branchName,
-      body.fromMessage,
-      'rest-user' // TODO: Get from auth context
-    );
+    try {
+      const result = await createBranch(
+        id,
+        body.branchName,
+        body.fromMessage,
+        'rest-user' // TODO: Get from auth context
+      );
 
-    reply.code(201).send({
-      conversationId: id,
-      branchName: body.branchName,
-      branchRef: result.branchRef,
-      createdAt: result.createdAt.toISOString(),
-    });
+      reply.code(201).send({
+        conversationId: id,
+        branchName: body.branchName,
+        branchRef: result.branchRef,
+        createdAt: result.createdAt.toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found in commit history')) {
+          reply.code(400).send({ error: 'Message not found or not yet committed' });
+        } else if (error.message.includes('already exists')) {
+          reply.code(409).send({ error: 'Branch already exists' });
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   });
 
   // GET /v1/chat/:id/branches - List branches

@@ -13,12 +13,13 @@ export async function createBranch(
 ): Promise<{ branchRef: string; createdAt: Date }> {
   const dir = join(CONVERSATIONS_DIR, conversationId);
 
-  // Get all commits in reverse chronological order
+  // Get all commits in reverse chronological order from current branch
+  // This allows branching from any branch, not just main
   const commits = await git.log({ fs, dir, depth: 100 });
 
   // Find the commit for the specified message number
   // Message commits have format "Add message N: role"
-  let targetCommit = commits[0].oid; // Default to latest
+  let targetCommit: string | null = null;
 
   for (const commit of commits) {
     const match = commit.commit.message.match(/^Add message (\d+):/);
@@ -31,9 +32,28 @@ export async function createBranch(
     }
   }
 
-  // Create Git branch at the target commit
+  // If we didn't find the specific message, fail
+  if (!targetCommit) {
+    throw new Error(`Message ${fromMessageNumber} not found in commit history`);
+  }
+
+  // Create Git branch at the target commit (doesn't require checkout)
+  // git.branch with checkout=false works from any branch
   const ref = `refs/heads/${branchName}`;
-  await git.branch({ fs, dir, ref: branchName, checkout: false, object: targetCommit });
+  try {
+    await git.branch({ fs, dir, ref: branchName, checkout: false, object: targetCommit });
+  } catch (error) {
+    // If it fails, it might be because of working directory state
+    // Try creating the branch ref directly
+    if (error instanceof Error && error.message.includes('ENOENT')) {
+      // Fallback: write the ref file directly
+      const refPath = join(dir, '.git', 'refs', 'heads', branchName);
+      await fs.promises.mkdir(join(dir, '.git', 'refs', 'heads'), { recursive: true });
+      await fs.promises.writeFile(refPath, targetCommit + '\n');
+    } else {
+      throw error;
+    }
+  }
 
   // Store branch metadata (not committed to Git - just local cache)
   const branchesPath = join(dir, '.soapy-branches.json');

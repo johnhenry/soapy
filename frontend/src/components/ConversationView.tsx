@@ -10,7 +10,7 @@ import { ToolCallView } from './ToolCallView';
 import type { Message, Branding, ToolCall, ToolResult } from '../types';
 import './ConversationView.css';
 
-type TabType = 'messages' | 'files' | 'tools' | 'branding';
+type TabType = 'messages' | 'files' | 'branding';
 
 interface ConversationViewProps {
   conversationId: string;
@@ -72,16 +72,62 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       setError(null);
       setStreaming(true);
 
+      // Optimistically add user message to UI immediately
+      const optimisticUserMessage: Message = {
+        sequenceNumber: messages.length + 1,
+        role: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+        commitHash: '',
+      };
+      setMessages([...messages, optimisticUserMessage]);
+
       if (files && files.length > 0) {
         for (const file of files) {
           await client.uploadFile(conversationId, file);
         }
       }
 
-      await client.sendMessage(conversationId, 'user', content, currentBranch !== 'main' ? currentBranch : undefined);
-      await loadMessages();
+      // Add placeholder for assistant message
+      const assistantMessage: Message = {
+        sequenceNumber: messages.length + 2,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toISOString(),
+        commitHash: '',
+      };
+      setMessages([...messages, optimisticUserMessage, assistantMessage]);
+
+      // Stream the response
+      let streamedContent = '';
+      for await (const chunk of client.sendMessageStream(
+        conversationId,
+        'user',
+        content,
+        currentBranch !== 'main' ? currentBranch : undefined
+      )) {
+        if (chunk.type === 'delta' && chunk.content) {
+          streamedContent += chunk.content;
+          // Update the assistant message with streamed content
+          setMessages((prevMessages) => {
+            const updated = [...prevMessages];
+            const lastMsg = updated[updated.length - 1];
+            if (lastMsg.role === 'assistant') {
+              lastMsg.content = streamedContent;
+            }
+            return updated;
+          });
+        } else if (chunk.type === 'done') {
+          // Refresh to get final committed messages with proper metadata
+          await loadMessages();
+        } else if (chunk.type === 'error') {
+          setError(chunk.message || 'Streaming failed');
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
+      // Reload messages to remove optimistic updates on error
+      await loadMessages();
     } finally {
       setStreaming(false);
     }
@@ -131,7 +177,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const tabs: { id: TabType; label: string }[] = [
     { id: 'messages', label: 'Messages' },
     { id: 'files', label: 'Files' },
-    { id: 'tools', label: 'Tools' },
     { id: 'branding', label: 'Branding' },
   ];
 
@@ -189,12 +234,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         )}
 
         {activeTab === 'files' && <FileUploader conversationId={conversationId} />}
-
-        {activeTab === 'tools' && (
-          <div className="tools-view">
-            <p className="empty-state-text">Tool calls will appear here</p>
-          </div>
-        )}
 
         {activeTab === 'branding' && (
           <BrandingEditor

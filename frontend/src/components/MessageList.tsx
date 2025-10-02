@@ -73,6 +73,17 @@ export function MessageList({ messages, streaming, onBranchFromMessage }: Messag
                 )}
               </div>
               <div className="message-content">{message.content}</div>
+              {message.toolCalls && message.toolCalls.length > 0 && (
+                <div className="tool-calls">
+                  <div className="tool-calls-header">🔧 Tool Calls</div>
+                  {message.toolCalls.map((toolCall, idx) => (
+                    <div key={idx} className="tool-call">
+                      <div className="tool-call-name">{toolCall.name}</div>
+                      <pre className="tool-call-args">{JSON.stringify(toolCall.arguments, null, 2)}</pre>
+                    </div>
+                  ))}
+                </div>
+              )}
               {message.aiProvider && (
                 <div className="message-footer">
                   <span className="provider-badge">

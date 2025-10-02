@@ -197,3 +197,63 @@
 .branch-form button:last-of-type:hover {
   background: var(--border);
 }
+
+.tool-calls {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--primary);
+}
+
+.message-user .tool-calls {
+  background: rgba(255, 255, 255, 0.2);
+  border-left-color: rgba(255, 255, 255, 0.5);
+}
+
+.tool-calls-header {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.message-user .tool-calls-header {
+  color: white;
+}
+
+.tool-call {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 0.25rem;
+}
+
+.message-user .tool-call {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.tool-call-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.message-user .tool-call-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tool-call-args {
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.message-user .tool-call-args {
+  color: rgba(255, 255, 255, 0.7);
+}

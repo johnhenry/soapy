@@ -17,7 +17,7 @@ export class OpenAIProvider implements AIProvider {
       apiKey: config.apiKey,
       baseURL: config.baseURL, // Optional custom base URL
     });
-    this.defaultModel = config.model || 'gpt-4';
+    this.defaultModel = config.model || 'gpt-4o-mini';
   }
 
   async generate(prompt: string, options?: GenerationOptions): Promise<GenerationResult> {
