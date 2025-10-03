@@ -146,6 +146,25 @@ npm run test:watch
 npm run test:ui
 ```
 
+**Testing with AI Providers:**
+
+To run tests with actual AI provider integration, configure API keys in your environment:
+
+```bash
+# For GitHub Actions or CI/CD
+# Add repository secrets: OPENAI_API_KEY and ANTHROPIC_API_KEY
+
+# For local testing
+# Create backend/.env file with:
+export OPENAI_API_KEY=sk-your-key-here
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Then run tests
+npm test
+```
+
+Note: Most tests use mock data and don't require API keys. Keys are only needed for live AI integration tests.
+
 ### CLI Tools
 
 Soapy provides a unified CLI with git-style sub-commands:
