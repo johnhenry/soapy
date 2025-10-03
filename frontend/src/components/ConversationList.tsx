@@ -36,7 +36,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
     setLoading(true);
     setError(null);
     try {
-      const client = new ApiClient(config.baseUrl, config.apiKey, config.protocol);
+      const client = new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.streaming);
       const convList = await client.listConversations();
       setConversations(convList);
     } catch (err) {
@@ -70,7 +70,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
     if (!deleteConfirm) return;
 
     try {
-      const client = new ApiClient(config.baseUrl, config.apiKey, config.protocol);
+      const client = new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.streaming);
       await client.deleteConversation(deleteConfirm.id);
 
       // If deleted conversation was selected, clear selection

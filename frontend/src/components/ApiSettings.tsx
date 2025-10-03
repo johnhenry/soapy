@@ -7,21 +7,33 @@ interface ApiSettingsProps {
 }
 
 export function ApiSettings({ onClose }: ApiSettingsProps) {
-  const { config, setApiKey, setProtocol } = useApi();
+  const { config, setApiKey, setRequestProtocol, setResponseProtocol, setDirectResponse, setStreaming } = useApi();
   const [apiKey, setApiKeyLocal] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  const [protocol, setProtocolLocal] = useState<'rest' | 'soap'>('rest');
+  const [requestProtocol, setRequestProtocolLocal] = useState<'rest' | 'soap'>('rest');
+  const [directResponse, setDirectResponseLocal] = useState(true);
+  const [responseProtocol, setResponseProtocolLocal] = useState<'rest' | 'soap'>('rest');
+  const [streaming, setStreamingLocal] = useState(true);
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setApiKeyLocal(config.apiKey);
     setBaseUrl(config.baseUrl);
-    setProtocolLocal(config.protocol);
+    setRequestProtocolLocal(config.requestProtocol);
+    setResponseProtocolLocal(config.responseProtocol);
+    setDirectResponseLocal(config.directResponse);
+    setStreamingLocal(config.streaming);
   }, [config]);
 
   const handleSave = () => {
     setApiKey(apiKey);
-    setProtocol(protocol);
+    setRequestProtocol(requestProtocol);
+    // If direct response is checked, response protocol matches request protocol
+    // Otherwise, use the explicitly selected response protocol
+    const finalResponseProtocol = directResponse ? requestProtocol : responseProtocol;
+    setResponseProtocol(finalResponseProtocol);
+    setDirectResponse(directResponse);
+    setStreaming(streaming);
     onClose();
   };
 
@@ -85,12 +97,96 @@ export function ApiSettings({ onClose }: ApiSettingsProps) {
           </div>
 
           <div className="form-group">
-            <label>Protocol</label>
-            <select value={protocol} onChange={(e) => setProtocolLocal(e.target.value as 'rest' | 'soap')}>
+            <label>Request Protocol</label>
+            <select value={requestProtocol} onChange={(e) => setRequestProtocolLocal(e.target.value as 'rest' | 'soap')}>
               <option value="rest">REST</option>
               <option value="soap">SOAP</option>
             </select>
-            <p className="help-text">Communication protocol (REST or SOAP)</p>
+            <p className="help-text">Protocol for submitting messages and operations</p>
+          </div>
+
+          <div className="form-group">
+            <label>
+              Direct Response
+              {' '}
+              <input
+                type="checkbox"
+                checked={directResponse}
+                onChange={(e) => setDirectResponseLocal(e.target.checked)}
+              />
+            </label>
+            <p className="help-text">
+              {directResponse
+                ? 'Response returned directly in single round-trip using same protocol'
+                : 'Request returns ID, then separate fetch retrieves response'}
+            </p>
+          </div>
+
+          {!directResponse && (
+            <div className="form-group">
+              <label>Response Protocol</label>
+              <select value={responseProtocol} onChange={(e) => setResponseProtocolLocal(e.target.value as 'rest' | 'soap')}>
+                <option value="rest">REST</option>
+                <option value="soap">SOAP</option>
+              </select>
+              <p className="help-text">Protocol for retrieving the response after ID is returned</p>
+            </div>
+          )}
+
+          {(directResponse ? requestProtocol === 'rest' : responseProtocol === 'rest') && (
+            <div className="form-group">
+              <label>
+                Enable Streaming
+                {' '}
+                <input
+                  type="checkbox"
+                  checked={streaming}
+                  onChange={(e) => setStreamingLocal(e.target.checked)}
+                />
+              </label>
+              <p className="help-text">
+                Stream AI responses in real-time (only available with REST response)
+              </p>
+            </div>
+          )}
+
+          <div className="protocol-combinations">
+            <h3>Current Configuration</h3>
+            <div className="config-summary">
+              {directResponse ? (
+                <>
+                  <strong>{requestProtocol.toUpperCase()}</strong> Direct Response
+                  {requestProtocol === 'rest' && streaming && ' (Streaming)'}
+                  {requestProtocol === 'rest' && !streaming && ' (Non-streaming)'}
+                </>
+              ) : (
+                <>
+                  <strong>{requestProtocol.toUpperCase()}</strong> → <strong>{responseProtocol.toUpperCase()}</strong>
+                  {responseProtocol === 'rest' && streaming && ' (Streaming)'}
+                  {responseProtocol === 'rest' && !streaming && ' (Non-streaming)'}
+                </>
+              )}
+            </div>
+            <p className="help-text">
+              {directResponse && requestProtocol === 'rest' && streaming &&
+                '✓ REST Direct: Single round-trip with real-time streaming (recommended)'}
+              {directResponse && requestProtocol === 'rest' && !streaming &&
+                '✓ REST Direct: Single round-trip, non-streaming'}
+              {directResponse && requestProtocol === 'soap' &&
+                '✓ SOAP Direct: Single round-trip (synchronous, non-streaming)'}
+              {!directResponse && requestProtocol === 'rest' && responseProtocol === 'rest' && streaming &&
+                '✓ REST→REST Hybrid: Submit message, then stream response (ID-based)'}
+              {!directResponse && requestProtocol === 'rest' && responseProtocol === 'rest' && !streaming &&
+                '✓ REST→REST Hybrid: Submit message, then poll response (ID-based)'}
+              {!directResponse && requestProtocol === 'rest' && responseProtocol === 'soap' &&
+                '✓ REST→SOAP Hybrid: Submit via REST, retrieve via SOAP (ID-based)'}
+              {!directResponse && requestProtocol === 'soap' && responseProtocol === 'soap' &&
+                '✓ SOAP→SOAP Hybrid: Submit via SOAP, retrieve via SOAP (ID-based)'}
+              {!directResponse && requestProtocol === 'soap' && responseProtocol === 'rest' && streaming &&
+                '✓ SOAP→REST Hybrid: Submit via SOAP, stream via REST (ID-based)'}
+              {!directResponse && requestProtocol === 'soap' && responseProtocol === 'rest' && !streaming &&
+                '✓ SOAP→REST Hybrid: Submit via SOAP, poll via REST (ID-based)'}
+            </p>
           </div>
         </div>
 

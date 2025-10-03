@@ -178,6 +178,45 @@ export class RestClient {
     }
   }
 
+  async *getCompletionStream(
+    id: string,
+    branch?: string,
+    provider?: 'openai' | 'anthropic',
+    model?: string
+  ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
+    // For hybrid mode with streaming: message was already submitted, now stream the completion
+    // For now, we'll use non-streaming completion and yield it as a stream
+    // TODO: Add POST /v1/chat/:id/completion/stream endpoint for true streaming
+    yield* this.getCompletionNonStream(id, branch, provider, model);
+  }
+
+  async *getCompletionNonStream(
+    id: string,
+    branch?: string,
+    provider?: 'openai' | 'anthropic',
+    model?: string
+  ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
+    // Trigger AI completion
+    const response = await this.fetch(`/v1/chat/${id}/completion`, {
+      method: 'POST',
+      body: JSON.stringify({ branch, provider, model }),
+    });
+
+    const result = await response.json();
+
+    // Yield the completion as a "done" event with full content
+    yield {
+      type: 'delta',
+      content: result.content || '',
+    };
+
+    yield {
+      type: 'done',
+      sequenceNumber: result.sequenceNumber,
+      commitHash: result.commitHash,
+    };
+  }
+
   async createBranch(id: string, branchName: string, fromMessage: number): Promise<Branch> {
     const response = await this.fetch(`/v1/chat/${id}/branch`, {
       method: 'POST',

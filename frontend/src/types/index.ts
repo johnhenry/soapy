@@ -84,5 +84,9 @@ export interface FileAttachment {
 export interface ApiConfig {
   apiKey: string;
   baseUrl: string;
-  protocol: 'rest' | 'soap';
+  protocol: 'rest' | 'soap'; // Deprecated: use requestProtocol + responseProtocol
+  requestProtocol: 'rest' | 'soap';
+  responseProtocol: 'rest' | 'soap';
+  directResponse: boolean; // True = single round-trip, False = ID-based hybrid
+  streaming: boolean; // Only applies when responseProtocol = 'rest'
 }

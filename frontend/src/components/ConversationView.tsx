@@ -24,14 +24,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
   const [selectedProvider, setSelectedProvider] = useState<'openai' | 'anthropic'>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
-  const [useStreaming, setUseStreaming] = useState(true);
 
-  const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.protocol));
-
-  useEffect(() => {
-    // Update client protocol when it changes
-    client.setProtocol(config.protocol);
-  }, [config.protocol, client]);
+  const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.directResponse, config.streaming));
 
   useEffect(() => {
     loadItems();
@@ -69,8 +63,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       console.log('handleSendMessage called with files:', files);
 
       // Force non-streaming mode when files are attached (streaming doesn't support files)
-      const shouldStream = useStreaming && (!files || files.length === 0);
-      console.log('useStreaming:', useStreaming, 'files:', files, 'shouldStream:', shouldStream);
+      const shouldStream = config.streaming && (!files || files.length === 0);
+      console.log('config.streaming:', config.streaming, 'files:', files, 'shouldStream:', shouldStream);
 
       if (shouldStream) {
         console.log('Using STREAMING mode');
@@ -131,7 +125,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       } else {
         console.log('Using NON-STREAMING mode');
 
-        // Add optimistic user message for immediate feedback
+        // Non-streaming mode - better for tool calls
+        // Add optimistic user message for immediate UI feedback
         const optimisticUserMessage: Message & { itemType: 'message' } = {
           sequenceNumber: items.length + 1,
           role: 'user',
@@ -139,16 +134,19 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           timestamp: new Date().toISOString(),
           commitHash: '',
           itemType: 'message',
-          attachments: files?.map(f => ({
-            filename: f.name,
-            contentType: f.type,
-            size: f.size,
-            path: `files/${f.name}`,
-          })),
         };
-        setItems([...items, optimisticUserMessage]);
 
-        // Non-streaming mode - better for tool calls
+        // Add loading placeholder for assistant response
+        const loadingMessage: Message & { itemType: 'message' } = {
+          sequenceNumber: items.length + 2,
+          role: 'assistant',
+          content: '...',
+          timestamp: new Date().toISOString(),
+          commitHash: '',
+          itemType: 'message',
+        };
+        setItems([...items, optimisticUserMessage, loadingMessage]);
+
         console.log('About to call client.sendMessage...');
         await client.sendMessage(
           conversationId,
@@ -289,14 +287,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
                     <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
                   </select>
                 )}
-              </label>
-              <label className="streaming-toggle">
-                <input
-                  type="checkbox"
-                  checked={useStreaming}
-                  onChange={(e) => setUseStreaming(e.target.checked)}
-                />
-                Streaming {!useStreaming && '(enables tool calls)'}
               </label>
             </div>
         <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />

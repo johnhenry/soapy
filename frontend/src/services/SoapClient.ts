@@ -188,74 +188,52 @@ export class SoapClient {
     provider?: 'openai' | 'anthropic',
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
-    // Hybrid SOAP→REST streaming pattern:
-    // Use REST SSE endpoint which handles message commit + streaming
-    const baseUrl = this.soapUrl.replace('/soap', '');
-    const streamUrl = `${baseUrl}/v1/chat/${id}/messages/stream`;
+    // Pure SOAP direct response (non-streaming): submit message, backend returns AI response synchronously
+    const result = await this.sendMessage(id, role, content, branch, provider, model);
 
-    const streamResponse = await fetch(streamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': this.apiKey,
-      },
-      body: JSON.stringify({
-        role: 'user',
+    // In pure SOAP mode, the backend would return the full conversation including AI response
+    // For now, just indicate completion
+    yield {
+      type: 'done',
+      sequenceNumber: result.sequenceNumber,
+      commitHash: result.commitHash,
+    };
+  }
+
+  async *getCompletionNonStream(
+    id: string,
+    branch?: string,
+    provider?: 'openai' | 'anthropic',
+    model?: string
+  ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
+    // Use the dedicated GetCompletion SOAP endpoint
+    const body = `<tns:GetCompletionRequest>
+      <conversationId>${id}</conversationId>
+      ${branch ? `<branchName>${branch}</branchName>` : ''}
+    </tns:GetCompletionRequest>`;
+
+    const doc = await this.soapCall('GetCompletion', body);
+
+    const content = this.getElementText(doc, 'content');
+    const sequenceNumber = this.getElementInt(doc, 'sequenceNumber');
+    const commitHash = this.getElementText(doc, 'commitHash');
+
+    if (content) {
+      yield {
+        type: 'delta',
         content,
-        provider,
-        model,
-        branch,
-      }),
-    });
+      };
 
-    if (!streamResponse.ok) {
-      yield { type: 'error', message: `Stream failed: ${streamResponse.status} ${streamResponse.statusText}` };
-      return;
-    }
-
-    const reader = streamResponse.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      yield { type: 'error', message: 'No response body' };
-      return;
-    }
-
-    let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.trim() || line.startsWith(':')) continue;
-
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
-            yield { type: 'done' };
-            return;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === 'delta' && parsed.content) {
-              yield { type: 'delta', content: parsed.content };
-            } else if (parsed.type === 'done') {
-              yield { type: 'done', sequenceNumber: parsed.sequenceNumber, commitHash: parsed.commitHash };
-              return;
-            } else if (parsed.type === 'error') {
-              yield { type: 'error', message: parsed.message };
-              return;
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE data:', data, e);
-          }
-        }
-      }
+      yield {
+        type: 'done',
+        sequenceNumber,
+        commitHash,
+      };
+    } else {
+      yield {
+        type: 'error',
+        message: 'No completion found',
+      };
     }
   }
 
