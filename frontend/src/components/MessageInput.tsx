@@ -37,13 +37,11 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   };
 
   const handleAttachClick = () => {
-    console.log('Attach button clicked', fileInputRef.current);
     // Try both ref and direct DOM query
     if (fileInputRef.current) {
       fileInputRef.current.click();
     } else {
       const input = document.getElementById(fileInputId) as HTMLInputElement;
-      console.log('Fallback to getElementById:', input);
       input?.click();
     }
   };

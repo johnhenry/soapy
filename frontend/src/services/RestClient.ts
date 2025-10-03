@@ -67,13 +67,9 @@ export class RestClient {
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
     try {
-      console.log('RestClient.sendMessage called with files:', files);
-
       // Convert files to base64 attachments
-      console.log('Starting file conversion...');
       const attachments = files ? await Promise.all(
         files.map(async (file) => {
-          console.log('Converting file:', file.name);
           const buffer = await file.arrayBuffer();
           const bytes = new Uint8Array(buffer);
 
@@ -86,7 +82,6 @@ export class RestClient {
           }
           const base64 = btoa(binary);
 
-          console.log('Converted file to base64:', file.name, 'size:', base64.length);
           return {
             filename: file.name,
             contentType: file.type,
@@ -96,33 +91,24 @@ export class RestClient {
         })
       ) : undefined;
 
-      console.log('File conversion complete. Attachments:', attachments?.length || 0);
-      console.log('Sending POST to /v1/chat/' + id + '/messages');
-
       // First, post the user message with attachments
       const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
         method: 'POST',
         body: JSON.stringify({ role, content, branch, attachments }),
       });
 
-      console.log('User message response status:', userResponse.status);
       const userResult = await userResponse.json();
-      console.log('User message result:', userResult);
 
       // If it's a user message, trigger AI completion
       if (role === 'user') {
-        console.log('Triggering AI completion...');
         await this.fetch(`/v1/chat/${id}/completion`, {
           method: 'POST',
           body: JSON.stringify({ provider, model, branch }),
         });
-        console.log('AI completion triggered');
       }
 
-      console.log('sendMessage complete, returning:', userResult);
       return userResult;
     } catch (error) {
-      console.error('ERROR in sendMessage:', error);
       throw error;
     }
   }
