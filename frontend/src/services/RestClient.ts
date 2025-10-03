@@ -223,12 +223,6 @@ export class RestClient {
     });
   }
 
-  async getBranding(id: string): Promise<Branding> {
-    const response = await this.fetch(`/v1/chat/${id}/branding`);
-    const data = await response.json();
-    return data.branding;
-  }
-
   async submitToolCall(id: string, toolName: string, parameters: Record<string, unknown>): Promise<{ sequenceNumber: number; commitHash: string }> {
     const response = await this.fetch(`/v1/chat/${id}/tools/call`, {
       method: 'POST',

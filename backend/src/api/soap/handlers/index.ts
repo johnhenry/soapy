@@ -3,7 +3,6 @@ import { CommitMessageHandler } from './CommitMessage.js';
 import { GetConversationHandler } from './GetConversation.js';
 import { GetCompletionHandler } from './GetCompletion.js';
 import { BranchConversationHandler } from './BranchConversation.js';
-import { GetBrandingHandler } from './GetBranding.js';
 import { CommitToolCallHandler } from './CommitToolCall.js';
 import { CommitToolResultHandler } from './CommitToolResult.js';
 import { CommitFileHandler } from './CommitFile.js';
@@ -20,7 +19,6 @@ export function registerSoapHandlers(): void {
   soapHandlerRegistry.register('GetConversation', GetConversationHandler);
   soapHandlerRegistry.register('GetCompletion', GetCompletionHandler);
   soapHandlerRegistry.register('BranchConversation', BranchConversationHandler);
-  soapHandlerRegistry.register('GetBranding', GetBrandingHandler);
   soapHandlerRegistry.register('CommitToolCall', CommitToolCallHandler);
   soapHandlerRegistry.register('CommitToolResult', CommitToolResultHandler);
   soapHandlerRegistry.register('CommitFile', CommitFileHandler);

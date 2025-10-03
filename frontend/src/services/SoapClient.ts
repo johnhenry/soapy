@@ -261,28 +261,6 @@ export class SoapClient {
     throw new Error('deleteBranch not implemented in SOAP protocol');
   }
 
-  async getBranding(id: string): Promise<any> {
-    const body = `<tns:GetBrandingRequest>
-      <tns:conversationId>${id}</tns:conversationId>
-    </tns:GetBrandingRequest>`;
-
-    const doc = await this.soapCall('GetBranding', body);
-
-    const brandingEl = doc.getElementsByTagName('branding')[0];
-    if (!brandingEl) return null;
-
-    const getText = (tag: string) => brandingEl.getElementsByTagName(tag)[0]?.textContent || '';
-
-    return {
-      logoUrl: getText('logoUrl'),
-      primaryColor: getText('primaryColor'),
-      secondaryColor: getText('secondaryColor') || undefined,
-      accentColor: getText('accentColor') || undefined,
-      footerText: getText('footerText') || undefined,
-      versionTimestamp: getText('versionTimestamp'),
-    };
-  }
-
   async submitToolCall(id: string, toolName: string, parameters: Record<string, unknown>): Promise<{ sequenceNumber: number; commitHash: string }> {
     const body = `<tns:CommitToolCallRequest>
       <tns:conversationId>${id}</tns:conversationId>

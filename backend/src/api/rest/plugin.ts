@@ -773,19 +773,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // GET /v1/chat/:id/branding - Get branding
-  fastify.get('/v1/chat/:id/branding', async (request, reply) => {
-    const { id } = request.params as { id: string };
-
-    reply.send({
-      conversationId: id,
-      branding: {
-        logoUrl: 'https://example.com/logo.png',
-        primaryColor: '#FF5733',
-      },
-    });
-  });
-
   // POST /v1/chat/:id/tools/call - Submit tool call
   fastify.post('/v1/chat/:id/tools/call', async (request, reply) => {
     const { id } = request.params as { id: string };
