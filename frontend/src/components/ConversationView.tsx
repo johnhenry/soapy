@@ -51,6 +51,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       if (providers.length > 0 && !providers.includes(selectedProvider)) {
         setSelectedProvider(providers[0]);
         await loadModels(providers[0]);
+      } else if (providers.length > 0 && providers.includes(selectedProvider)) {
+        // Load models for current provider on initial mount
+        await loadModels(selectedProvider);
       }
     } catch (err) {
       console.error('Failed to load providers:', err);
