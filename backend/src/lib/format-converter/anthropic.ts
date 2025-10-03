@@ -6,6 +6,7 @@ export interface AnthropicMessage {
   role: 'user' | 'assistant';
   content: Array<
     | { type: 'text'; text: string }
+    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
     | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
     | { type: 'tool_result'; tool_use_id: string; content: string }
   >;
@@ -42,6 +43,22 @@ export function toAnthropic(
         text: msg.content,
       },
     ];
+
+    // Add image attachments if present
+    if (msg.attachments) {
+      for (const attachment of msg.attachments) {
+        if (attachment.contentType.startsWith('image/') && attachment.data) {
+          content.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: attachment.contentType,
+              data: attachment.data
+            }
+          });
+        }
+      }
+    }
 
     // Find associated tool calls
     const msgToolCalls = toolCalls.filter(
