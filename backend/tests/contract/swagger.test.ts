@@ -42,6 +42,7 @@ describe('Swagger/OpenAPI Documentation Tests', () => {
     const expectedPaths = [
       '/chat/{chatId}',
       '/chat/{chatId}/message',
+      '/chat/{chatId}/completion',
       '/chat/{chatId}/branch',
       '/chat/{chatId}/branches',
       '/chat/{chatId}/branding',
