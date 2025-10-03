@@ -57,12 +57,7 @@ export class AIProviderOrchestrator {
       throw new Error(`Provider ${type} not registered`);
     }
 
-    try {
-      return await provider.generate(prompt, options);
-    } catch (error) {
-      console.error(`Error with provider ${type}:`, error);
-      throw error;
-    }
+    return await provider.generate(prompt, options);
   }
 }
 

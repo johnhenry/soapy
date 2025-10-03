@@ -35,8 +35,6 @@ export class AnthropicProvider implements AIProvider {
         })),
       });
 
-      console.log('Anthropic raw response:', JSON.stringify(message, null, 2));
-
       const textContent = message.content.find((c: any) => c.type === 'text');
       const toolUse = message.content.find((c: any) => c.type === 'tool_use');
 
@@ -48,8 +46,6 @@ export class AnthropicProvider implements AIProvider {
             },
           ]
         : undefined;
-
-      console.log('Parsed tool calls:', JSON.stringify(toolCalls, null, 2));
 
       return {
         content: textContent && textContent.type === 'text' ? textContent.text : '',
