@@ -69,39 +69,42 @@ export class AIProviderOrchestrator {
 export const aiOrchestrator = new AIProviderOrchestrator();
 
 // Initialize providers from environment variables
-if (process.env.OPENAI_API_KEY) {
-  aiOrchestrator.registerProvider('openai', {
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL,
-  });
-}
+// This must be called after dotenv config is loaded
+export function initializeProviders() {
+  if (process.env.OPENAI_API_KEY) {
+    aiOrchestrator.registerProvider('openai', {
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL,
+    });
+  }
 
-if (process.env.ANTHROPIC_API_KEY) {
-  aiOrchestrator.registerProvider('anthropic', {
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
-}
+  if (process.env.ANTHROPIC_API_KEY) {
+    aiOrchestrator.registerProvider('anthropic', {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
 
-// Ollama - typically runs locally without API key
-if (process.env.OLLAMA_BASE_URL) {
-  aiOrchestrator.registerProvider('ollama', {
-    apiKey: process.env.OLLAMA_API_KEY || 'not-needed',
-    baseURL: process.env.OLLAMA_BASE_URL,
-  });
-}
+  // Ollama - typically runs locally without API key
+  if (process.env.OLLAMA_BASE_URL) {
+    aiOrchestrator.registerProvider('ollama', {
+      apiKey: process.env.OLLAMA_API_KEY || 'not-needed',
+      baseURL: process.env.OLLAMA_BASE_URL,
+    });
+  }
 
-// LM Studio - typically runs locally without API key
-if (process.env.LMSTUDIO_BASE_URL) {
-  aiOrchestrator.registerProvider('lmstudio', {
-    apiKey: process.env.LMSTUDIO_API_KEY || 'not-needed',
-    baseURL: process.env.LMSTUDIO_BASE_URL,
-  });
-}
+  // LM Studio - typically runs locally without API key
+  if (process.env.LMSTUDIO_BASE_URL) {
+    aiOrchestrator.registerProvider('lmstudio', {
+      apiKey: process.env.LMSTUDIO_API_KEY || 'not-needed',
+      baseURL: process.env.LMSTUDIO_BASE_URL,
+    });
+  }
 
-// Generic OpenAI-compatible provider
-if (process.env.OPENAI_COMPATIBLE_BASE_URL) {
-  aiOrchestrator.registerProvider('openai-compatible', {
-    apiKey: process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed',
-    baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL,
-  });
+  // Generic OpenAI-compatible provider
+  if (process.env.OPENAI_COMPATIBLE_BASE_URL) {
+    aiOrchestrator.registerProvider('openai-compatible', {
+      apiKey: process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed',
+      baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL,
+    });
+  }
 }

@@ -1,7 +1,9 @@
 import { config } from 'dotenv';
 import { buildApp } from './app.js';
+import { initializeProviders } from './lib/ai-providers/index.js';
 
 config();
+initializeProviders();
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || 'localhost';
