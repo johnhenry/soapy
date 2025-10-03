@@ -49,9 +49,8 @@ async function checkModels(): Promise<HealthStatus> {
       'branch',
       'tool-call',
       'tool-result',
-      'branding',
     ];
-    
+
     for (const model of models) {
       const modelPath = join(__dirname, `../models/${model}.ts`);
       readFileSync(modelPath, 'utf-8');
