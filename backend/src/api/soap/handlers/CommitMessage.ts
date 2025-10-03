@@ -9,7 +9,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
   const conversationId = extractText(request, 'conversationId');
   const role = extractText(request, 'role') as 'user' | 'assistant' | 'system';
   const content = extractCDATA(request, 'content');
-  const aiProvider = (extractText(request, 'aiProvider') || 'openai') as 'openai' | 'anthropic';
+  const aiProvider = (extractText(request, 'aiProvider') || 'openai') as any;
   const model = extractText(request, 'model') || (aiProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
 
   // Create conversation if it doesn't exist
@@ -55,34 +55,15 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
 
       fastify.log.info({ provider: aiProvider, model, messageCount: messages.length }, 'Calling AI provider');
 
-      // Call AI provider directly
-      let usedModel = model;
-      if (aiProvider === 'openai' && aiOrchestrator.hasProvider('openai')) {
-        const OpenAI = (await import('openai')).default;
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-        const completion = await openai.chat.completions.create({
-          model,
-          messages: messages as any,
-        });
-
-        aiResponse = completion.choices[0].message.content || '';
-        usedModel = completion.model;
-      } else if (aiProvider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
-        const Anthropic = (await import('@anthropic-ai/sdk')).default;
-        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-        const completion = await anthropic.messages.create({
-          model,
-          max_tokens: 4096,
-          messages: messages as any,
-        });
-
-        aiResponse = completion.content[0].type === 'text' ? completion.content[0].text : '';
-        usedModel = completion.model;
-      } else {
+      // Check if provider is available
+      if (!aiOrchestrator.hasProvider(aiProvider)) {
         throw new Error(`Provider ${aiProvider} not available or not configured`);
       }
+
+      // Call AI provider via orchestrator
+      const result = await aiOrchestrator.chat(aiProvider, messages as any, { model });
+      aiResponse = result.content;
+      const usedModel = result.model;
 
       // Commit AI response
       aiResult = await commitMessage(conversationId, {
