@@ -14,6 +14,38 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     reply.send({ providers });
   });
 
+  // GET /v1/providers/:provider/models - List models for a specific provider
+  fastify.get('/v1/providers/:provider/models', async (request, reply) => {
+    const { provider } = request.params as { provider: string };
+
+    try {
+      if (provider === 'openai') {
+        reply.send({ models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] });
+      } else if (provider === 'anthropic') {
+        reply.send({ models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'] });
+      } else if (provider === 'ollama' && process.env.OLLAMA_BASE_URL) {
+        const response = await fetch(`${process.env.OLLAMA_BASE_URL}/models`);
+        const data = await response.json() as any;
+        const models = data.data?.map((m: any) => m.id) || [];
+        reply.send({ models });
+      } else if (provider === 'lmstudio' && process.env.LMSTUDIO_BASE_URL) {
+        const response = await fetch(`${process.env.LMSTUDIO_BASE_URL}/models`);
+        const data = await response.json() as any;
+        const models = data.data?.map((m: any) => m.id) || [];
+        reply.send({ models });
+      } else if (provider === 'openai-compatible' && process.env.OPENAI_COMPATIBLE_BASE_URL) {
+        const response = await fetch(`${process.env.OPENAI_COMPATIBLE_BASE_URL}/models`);
+        const data = await response.json() as any;
+        const models = data.data?.map((m: any) => m.id) || [];
+        reply.send({ models });
+      } else {
+        reply.code(404).send({ error: 'Provider not available or not configured' });
+      }
+    } catch (error) {
+      reply.code(500).send({ error: 'Failed to fetch models from provider' });
+    }
+  });
+
   // DELETE /v1/chat/:id - Delete conversation
   fastify.delete('/v1/chat/:id', async (request, reply) => {
     const { id } = request.params as { id: string };

@@ -15,6 +15,12 @@ export class RestClient {
     return data.providers || [];
   }
 
+  async listModels(provider: AIProvider): Promise<string[]> {
+    const response = await this.fetch(`/v1/providers/${provider}/models`);
+    const data = await response.json();
+    return data.models || [];
+  }
+
   async deleteConversation(id: string): Promise<void> {
     await this.fetch(`/v1/chat/${id}`, {
       method: 'DELETE',

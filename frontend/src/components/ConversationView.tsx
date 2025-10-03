@@ -25,15 +25,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([]);
-
-  // Model lists for each provider
-  const providerModels: Record<AIProvider, string[]> = {
-    'openai': ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-    'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
-    'ollama': ['llama2', 'llama2:13b', 'mistral', 'mixtral', 'codellama', 'phi'],
-    'lmstudio': ['local-model'], // LM Studio uses whatever model is loaded
-    'openai-compatible': ['default'], // Custom endpoints may vary
-  };
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
 
   const providerNames: Record<AIProvider, string> = {
     'openai': 'OpenAI',
@@ -58,10 +50,24 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       // If current provider is not available, switch to first available
       if (providers.length > 0 && !providers.includes(selectedProvider)) {
         setSelectedProvider(providers[0]);
-        setSelectedModel(providerModels[providers[0]][0]);
+        await loadModels(providers[0]);
       }
     } catch (err) {
       console.error('Failed to load providers:', err);
+    }
+  };
+
+  const loadModels = async (provider: AIProvider) => {
+    try {
+      const models = await client.listModels(provider);
+      setAvailableModels(models);
+      // Set first model as selected if current model isn't available
+      if (models.length > 0 && !models.includes(selectedModel)) {
+        setSelectedModel(models[0]);
+      }
+    } catch (err) {
+      console.error('Failed to load models:', err);
+      setAvailableModels([]);
     }
   };
 
@@ -282,10 +288,10 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         <div className="ai-controls">
               <label>
                 Provider:
-                <select value={selectedProvider} onChange={(e) => {
+                <select value={selectedProvider} onChange={async (e) => {
                   const newProvider = e.target.value as AIProvider;
                   setSelectedProvider(newProvider);
-                  setSelectedModel(providerModels[newProvider][0]);
+                  await loadModels(newProvider);
                 }}>
                   {availableProviders.map((provider) => (
                     <option key={provider} value={provider}>{providerNames[provider]}</option>
@@ -295,7 +301,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
               <label>
                 Model:
                 <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                  {providerModels[selectedProvider].map((model) => (
+                  {availableModels.map((model) => (
                     <option key={model} value={model}>{model}</option>
                   ))}
                 </select>
