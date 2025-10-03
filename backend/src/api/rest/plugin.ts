@@ -415,36 +415,14 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           result: tc.result.data
         }));
 
-        let finalResponse = '';
-        if (provider === 'openai') {
-          const OpenAI = (await import('openai')).default;
-          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        // Get final response from AI with tool results
+        const finalMessages = [
+          ...updatedMessages.map(m => ({ role: m.role as any, content: m.content })),
+          { role: 'assistant' as const, content: `Tool results: ${JSON.stringify(toolResultsFormatted)}` }
+        ];
 
-          const completion = await openai.chat.completions.create({
-            model: usedModel,
-            messages: [
-              ...updatedMessages.map(m => ({ role: m.role as any, content: m.content })),
-              { role: 'assistant' as const, content: `Tool results: ${JSON.stringify(toolResultsFormatted)}` }
-            ]
-          });
-
-          finalResponse = completion.choices[0].message.content || '';
-        } else if (provider === 'anthropic') {
-          const Anthropic = (await import('@anthropic-ai/sdk')).default;
-          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-          const response = await anthropic.messages.create({
-            model: usedModel,
-            max_tokens: 1000,
-            messages: [
-              ...updatedMessages.map(m => ({ role: m.role as any, content: m.content })),
-              { role: 'assistant' as const, content: `Tool results: ${JSON.stringify(toolResultsFormatted)}` }
-            ]
-          });
-
-          const finalTextContent = response.content.find((c: any) => c.type === 'text') as any;
-          finalResponse = finalTextContent?.text || '';
-        }
+        const chatResult = await aiOrchestrator.chat(provider as any, finalMessages, { model: usedModel });
+        const finalResponse = chatResult.content;
 
         // Store final assistant response
         const finalResult = await commitMessage(id, {
