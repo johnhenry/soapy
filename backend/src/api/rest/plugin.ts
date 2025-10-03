@@ -247,32 +247,12 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       }
 
       // Call AI provider with tool support
-      if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
-        const OpenAI = (await import('openai')).default;
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      if (!aiOrchestrator.hasProvider(provider as any)) {
+        reply.code(503).send({ error: 'AI provider not available' });
+        return;
+      }
 
-        const completion = await openai.chat.completions.create({
-          model,
-          messages: openaiMessages,
-          tools: tools.map(t => ({
-            type: 'function' as const,
-            function: {
-              name: t.name,
-              description: t.description,
-              parameters: t.parameters
-            }
-          })),
-          tool_choice: 'auto'
-        });
-
-        const choice = completion.choices[0];
-        assistantContent = choice.message.content || '';
-        toolCalls = choice.message.tool_calls?.map((tc: any) => ({
-          name: tc.function.name,
-          parameters: JSON.parse(tc.function.arguments)
-        })) || [];
-        usedModel = completion.model;
-      } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
+      if (provider === 'anthropic') {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -345,47 +325,25 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           parameters: tc.input
         }));
         usedModel = response.model;
-      } else if ((provider === 'ollama' || provider === 'lmstudio' || provider === 'openai-compatible') && aiOrchestrator.hasProvider(provider)) {
-        // Ollama, LM Studio, and custom OpenAI-compatible providers use OpenAI SDK
-        const OpenAI = (await import('openai')).default;
-
-        // Get the base URL from the registered provider
-        const providerConfig = aiOrchestrator.getProvider(provider);
-        const baseURL = provider === 'ollama' ? process.env.OLLAMA_BASE_URL :
-                        provider === 'lmstudio' ? process.env.LMSTUDIO_BASE_URL :
-                        process.env.OPENAI_COMPATIBLE_BASE_URL;
-
-        const openai = new OpenAI({
-          apiKey: provider === 'ollama' ? (process.env.OLLAMA_API_KEY || 'not-needed') :
-                  provider === 'lmstudio' ? (process.env.LMSTUDIO_API_KEY || 'not-needed') :
-                  (process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed'),
-          baseURL
-        });
-
-        const completion = await openai.chat.completions.create({
-          model,
-          messages: openaiMessages,
-          tools: tools.map(t => ({
-            type: 'function' as const,
-            function: {
+      } else {
+        // OpenAI and OpenAI-compatible providers (ollama, lmstudio, openai-compatible)
+        // All use the orchestrator's chat method with OpenAI-formatted messages
+        const result = await aiOrchestrator.chat(
+          provider as any,
+          openaiMessages,
+          {
+            model,
+            tools: tools.map(t => ({
               name: t.name,
               description: t.description,
               parameters: t.parameters
-            }
-          })),
-          tool_choice: 'auto'
-        });
+            }))
+          }
+        );
 
-        const choice = completion.choices[0];
-        assistantContent = choice.message.content || '';
-        toolCalls = choice.message.tool_calls?.map((tc: any) => ({
-          name: tc.function.name,
-          parameters: JSON.parse(tc.function.arguments)
-        })) || [];
-        usedModel = completion.model;
-      } else {
-        reply.code(503).send({ error: 'AI provider not available' });
-        return;
+        assistantContent = result.content;
+        toolCalls = result.toolCalls || [];
+        usedModel = result.model;
       }
 
       // Store assistant message
@@ -692,24 +650,14 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
           // Note: Streaming with tools is not currently supported
           // Tools require non-streaming API to handle tool use properly
-          if (provider === 'openai' && aiOrchestrator.hasProvider('openai')) {
-            const OpenAI = (await import('openai')).default;
-            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-            const stream = await openai.chat.completions.create({
-              model,
-              messages: formattedMessages,
-              stream: true,
-            });
+          if (!aiOrchestrator.hasProvider(provider as any)) {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'AI provider not available' })}\n\n`);
+            reply.raw.end();
+            return;
+          }
 
-            for await (const chunk of stream) {
-              const delta = chunk.choices[0]?.delta?.content || '';
-              if (delta) {
-                fullResponse += delta;
-                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
-              }
-            }
-          } else if (provider === 'anthropic' && aiOrchestrator.hasProvider('anthropic')) {
+          if (provider === 'anthropic') {
             const Anthropic = (await import('@anthropic-ai/sdk')).default;
             const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -731,38 +679,21 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
                 reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
               }
             }
-          } else if ((provider === 'ollama' || provider === 'lmstudio' || provider === 'openai-compatible') && aiOrchestrator.hasProvider(provider)) {
-            // Ollama, LM Studio, and custom OpenAI-compatible providers use OpenAI SDK
-            const OpenAI = (await import('openai')).default;
-
-            const baseURL = provider === 'ollama' ? process.env.OLLAMA_BASE_URL :
-                            provider === 'lmstudio' ? process.env.LMSTUDIO_BASE_URL :
-                            process.env.OPENAI_COMPATIBLE_BASE_URL;
-
-            const openai = new OpenAI({
-              apiKey: provider === 'ollama' ? (process.env.OLLAMA_API_KEY || 'not-needed') :
-                      provider === 'lmstudio' ? (process.env.LMSTUDIO_API_KEY || 'not-needed') :
-                      (process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed'),
-              baseURL
-            });
-
-            const stream = await openai.chat.completions.create({
-              model,
-              messages: formattedMessages,
-              stream: true,
-            });
+          } else {
+            // OpenAI and OpenAI-compatible providers (ollama, lmstudio, openai-compatible)
+            // All use the orchestrator's chatStream method
+            const stream = aiOrchestrator.chatStream(
+              provider as any,
+              formattedMessages,
+              { model }
+            );
 
             for await (const chunk of stream) {
-              const delta = chunk.choices[0]?.delta?.content || '';
-              if (delta) {
-                fullResponse += delta;
-                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
+              if (chunk.delta) {
+                fullResponse += chunk.delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: chunk.delta })}\n\n`);
               }
             }
-          } else {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'No AI provider available' })}\n\n`);
-            reply.raw.end();
-            return;
           }
 
           // Store assistant response
