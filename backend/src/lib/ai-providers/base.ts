@@ -39,8 +39,35 @@ export interface StreamChunk {
   finishReason?: 'stop' | 'length' | 'tool_calls';
 }
 
+export interface ChatMessage {
+  role: string;
+  content: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+}
+
 export interface AIProvider {
   name: string;
+
+  // Model management
+  listModels(): Promise<string[]>;
+
+  // Chat completion with full message history
+  chat(messages: ChatMessage[], options?: GenerationOptions): Promise<GenerationResult>;
+
+  // Streaming chat with full message history
+  chatStream(
+    messages: ChatMessage[],
+    options?: GenerationOptions
+  ): AsyncGenerator<StreamChunk, void, unknown>;
+
+  // Legacy methods (deprecated, use chat/chatStream instead)
   generate(prompt: string, options?: GenerationOptions): Promise<GenerationResult>;
   stream(
     prompt: string,
