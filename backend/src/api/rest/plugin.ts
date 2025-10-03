@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { gitStorage } from '../../lib/git-storage/index.js';
 import { commitMessage, getMessages, getConversationItems, commitToolCall, commitToolResult } from '../../lib/git-storage/message.js';
 import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
-import { aiOrchestrator } from '../../lib/ai-providers/index.js';
+import { aiOrchestrator, type ProviderType } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
 import { join } from 'path';
 import fs from 'fs';
@@ -75,7 +75,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       role: MessageRole;
       content: string;
       branch?: string;
-      provider?: 'openai' | 'anthropic';
+      provider?: ProviderType;
       model?: string;
       attachments?: Array<{
         filename: string;
@@ -133,7 +133,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.post('/v1/chat/:id/completion', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = request.body as {
-      provider?: 'openai' | 'anthropic';
+      provider?: ProviderType;
       model?: string;
       branch?: string;
     };
@@ -531,7 +531,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       role: MessageRole;
       content: string;
       branch?: string;
-      provider?: 'openai' | 'anthropic';
+      provider?: ProviderType;
       model?: string;
     };
 
