@@ -24,11 +24,66 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
     });
   }
 
-  // Commit user message
+  // Check for uploaded files (from CommitFile calls) and include them as attachments
+  let attachments: Array<{ filename: string; contentType: string; size: number; data: string; path: string }> | undefined;
+  try {
+    const { join } = await import('path');
+    const fs = await import('fs/promises');
+    const conversationDir = join(process.cwd(), 'conversations', conversationId);
+    const filesDir = join(conversationDir, 'files');
+
+    try {
+      const fileList = await fs.readdir(filesDir);
+      if (fileList.length > 0) {
+        attachments = [];
+        for (const filename of fileList) {
+          const filePath = join(filesDir, filename);
+          const stats = await fs.stat(filePath);
+          const buffer = await fs.readFile(filePath);
+
+          // Infer content type from extension
+          const ext = filename.split('.').pop()?.toLowerCase();
+          const contentTypeMap: Record<string, string> = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'pdf': 'application/pdf',
+            'txt': 'text/plain',
+            'json': 'application/json',
+          };
+          const contentType = contentTypeMap[ext || ''] || 'application/octet-stream';
+
+          attachments.push({
+            filename,
+            contentType,
+            size: stats.size,
+            data: buffer.toString('base64'),
+            path: `files/${filename}`,
+          });
+
+          // Delete the file after reading it so it's only attached once
+          await fs.unlink(filePath);
+        }
+        fastify.log.info({ conversationId, attachmentCount: attachments.length }, 'Attaching uploaded files to message');
+      }
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        fastify.log.warn(err, 'Error reading files directory');
+      }
+    }
+  } catch (err) {
+    fastify.log.warn(err, 'Failed to check for uploaded files');
+  }
+
+  // Commit user message with attachments
+  // Note: commitMessage will re-save the attachments and add them to git
   const userResult = await commitMessage(conversationId, {
     role,
     content,
     timestamp: new Date(),
+    attachments,
   });
 
   fastify.log.info({ conversationId, sequenceNumber: userResult.sequenceNumber }, 'User message committed');
