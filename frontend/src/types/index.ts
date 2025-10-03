@@ -61,14 +61,9 @@ export interface ToolResult {
   commitHash: string;
 }
 
-export interface Branding {
-  logoUrl: string;
-  primaryColor: string;
-  secondaryColor?: string;
-  accentColor?: string;
-  footerText?: string;
-  versionTimestamp: string;
-}
+export type AIProvider = 'openai' | 'anthropic' | 'ollama' | 'lmstudio' | 'openai-compatible';
+
+export type OutputFormat = 'openai' | 'anthropic' | 'soap';
 
 export interface FileAttachment {
   filename: string;
@@ -89,4 +84,8 @@ export interface ApiConfig {
   responseProtocol: 'rest' | 'soap';
   directResponse: boolean; // True = single round-trip, False = ID-based hybrid
   streaming: boolean; // Only applies when responseProtocol = 'rest'
+  // Provider-specific base URLs (for local/custom providers)
+  ollamaBaseUrl?: string;
+  lmstudioBaseUrl?: string;
+  openaiCompatibleBaseUrl?: string;
 }

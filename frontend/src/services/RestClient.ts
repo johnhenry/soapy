@@ -1,4 +1,4 @@
-import type { Message, Conversation, Branch, ToolCall, ToolResult, Branding, FileAttachment, OutputFormat, ConversationItem } from '../types';
+import type { Message, Conversation, Branch, ToolCall, ToolResult, FileAttachment, OutputFormat, ConversationItem, AIProvider } from '../types';
 
 export class RestClient {
   constructor(private baseUrl: string, private apiKey: string) {}
@@ -62,7 +62,7 @@ export class RestClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string,
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
@@ -118,7 +118,7 @@ export class RestClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     const response = await fetch(`${this.baseUrl}/v1/chat/${id}/messages/stream`, {
@@ -167,7 +167,7 @@ export class RestClient {
   async *getCompletionStream(
     id: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // For hybrid mode with streaming: message was already submitted, now stream the completion
@@ -179,7 +179,7 @@ export class RestClient {
   async *getCompletionNonStream(
     id: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Trigger AI completion

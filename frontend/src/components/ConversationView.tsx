@@ -6,7 +6,7 @@ import { MessageInput } from './MessageInput';
 import { BranchManager } from './BranchManager';
 import { FileUploader } from './FileUploader';
 import { ToolCallView } from './ToolCallView';
-import type { Message, Branding, ToolCall, ToolResult, ConversationItem } from '../types';
+import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
 import './ConversationView.css';
 
 interface ConversationViewProps {
@@ -22,8 +22,17 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [streaming, setStreaming] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
-  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'anthropic'>('openai');
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
+
+  // Model lists for each provider
+  const providerModels: Record<AIProvider, string[]> = {
+    'openai': ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    'ollama': ['llama2', 'llama2:13b', 'mistral', 'mixtral', 'codellama', 'phi'],
+    'lmstudio': ['local-model'], // LM Studio uses whatever model is loaded
+    'openai-compatible': ['default'], // Custom endpoints may vary
+  };
 
   const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.directResponse, config.streaming));
 
@@ -250,29 +259,24 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
               <label>
                 Provider:
                 <select value={selectedProvider} onChange={(e) => {
-                  const newProvider = e.target.value as 'openai' | 'anthropic';
+                  const newProvider = e.target.value as AIProvider;
                   setSelectedProvider(newProvider);
-                  setSelectedModel(newProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+                  setSelectedModel(providerModels[newProvider][0]);
                 }}>
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
+                  <option value="ollama">Ollama (Local)</option>
+                  <option value="lmstudio">LM Studio (Local)</option>
+                  <option value="openai-compatible">Custom OpenAI-Compatible</option>
                 </select>
               </label>
               <label>
                 Model:
-                {selectedProvider === 'openai' ? (
-                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                  </select>
-                ) : (
-                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                    <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                    <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-                  </select>
-                )}
+                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                  {providerModels[selectedProvider].map((model) => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
               </label>
             </div>
         <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />

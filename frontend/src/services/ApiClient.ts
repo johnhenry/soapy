@@ -1,6 +1,6 @@
 import { RestClient } from './RestClient';
 import { SoapClient } from './SoapClient';
-import type { Message, Conversation, Branch, ToolCall, ToolResult, FileAttachment, ConversationItem } from '../types';
+import type { Message, Conversation, Branch, ToolCall, ToolResult, FileAttachment, ConversationItem, AIProvider, OutputFormat } from '../types';
 
 /**
  * Protocol-agnostic API client that switches between REST and SOAP implementations
@@ -85,7 +85,7 @@ export class ApiClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string,
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
@@ -98,7 +98,7 @@ export class ApiClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Direct Response mode: single round-trip request

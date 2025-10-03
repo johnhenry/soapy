@@ -1,4 +1,4 @@
-import type { Message, Conversation, Branch, ToolCall, ToolResult, FileAttachment, ConversationItem } from '../types';
+import type { Message, Conversation, Branch, ToolCall, ToolResult, FileAttachment, ConversationItem, AIProvider, OutputFormat } from '../types';
 
 /**
  * Browser-compatible SOAP client using raw XML/HTTP
@@ -81,7 +81,7 @@ export class SoapClient {
     throw new Error('deleteConversation not implemented in SOAP protocol');
   }
 
-  async getConversation(id: string, format: 'openai' | 'anthropic' | 'soap' = 'soap', branch?: string): Promise<Conversation> {
+  async getConversation(id: string, format: OutputFormat = 'soap', branch?: string): Promise<Conversation> {
     const branchElement = branch ? `<tns:branchName>${branch}</tns:branchName>` : '';
     const body = `<tns:GetConversationRequest>
       <tns:conversationId>${id}</tns:conversationId>
@@ -102,7 +102,7 @@ export class SoapClient {
     };
   }
 
-  async getMessages(id: string, format: 'openai' | 'anthropic' | 'soap' = 'soap', branch?: string): Promise<Message[]> {
+  async getMessages(id: string, format: OutputFormat = 'soap', branch?: string): Promise<Message[]> {
     const branchElement = branch ? `<tns:branchName>${branch}</tns:branchName>` : '';
     const body = `<tns:GetConversationRequest>
       <tns:conversationId>${id}</tns:conversationId>
@@ -139,7 +139,7 @@ export class SoapClient {
     return messages;
   }
 
-  async getConversationItems(id: string, format: 'openai' | 'anthropic' | 'soap' = 'soap', branch?: string): Promise<ConversationItem[]> {
+  async getConversationItems(id: string, format: OutputFormat = 'soap', branch?: string): Promise<ConversationItem[]> {
     // SOAP WSDL only returns messages, not tool calls/results
     const messages = await this.getMessages(id, format, branch);
     return messages.map(msg => ({ ...msg, itemType: 'message' as const }));
@@ -150,7 +150,7 @@ export class SoapClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string,
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
@@ -185,7 +185,7 @@ export class SoapClient {
     role: string,
     content: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Pure SOAP direct response (non-streaming): submit message, backend returns AI response synchronously
@@ -199,7 +199,7 @@ export class SoapClient {
   async *getCompletionNonStream(
     id: string,
     branch?: string,
-    provider?: 'openai' | 'anthropic',
+    provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Use the dedicated GetCompletion SOAP endpoint
