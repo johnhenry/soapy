@@ -42,6 +42,19 @@ export interface SoapService {
     }>;
   }>;
 
+  GetCompletion(args: {
+    conversationId: string;
+    branchName?: string;
+  }): Promise<{
+    message: {
+      sequenceNumber: number;
+      role: string;
+      content: string;
+      timestamp: string;
+      commitHash: string;
+    };
+  }>;
+
   GetBranding(args: { conversationId: string }): Promise<{
     branding: {
       logoUrl: string;
@@ -130,6 +143,19 @@ export const soapService: SoapService = {
   async GetConversation(_args) {
     return {
       messages: [],
+    };
+  },
+
+  async GetCompletion(_args) {
+    // Return the most recent assistant message
+    return {
+      message: {
+        sequenceNumber: 2,
+        role: 'assistant',
+        content: 'This is a completion response from the SOAP GetCompletion endpoint.',
+        timestamp: new Date().toISOString(),
+        commitHash: 'completion-abc123',
+      },
     };
   },
 

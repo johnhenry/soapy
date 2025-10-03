@@ -1,0 +1,27 @@
+import { soapHandlerRegistry } from './registry.js';
+import { CommitMessageHandler } from './CommitMessage.js';
+import { GetConversationHandler } from './GetConversation.js';
+import { GetCompletionHandler } from './GetCompletion.js';
+import { BranchConversationHandler } from './BranchConversation.js';
+import { GetBrandingHandler } from './GetBranding.js';
+import { CommitToolCallHandler } from './CommitToolCall.js';
+import { CommitToolResultHandler } from './CommitToolResult.js';
+import { CommitFileHandler } from './CommitFile.js';
+import { GetFileHandler } from './GetFile.js';
+import { ListConversationsHandler } from './ListConversations.js';
+
+// Register all SOAP operation handlers
+export function registerSoapHandlers(): void {
+  soapHandlerRegistry.register('CommitMessage', CommitMessageHandler);
+  soapHandlerRegistry.register('GetConversation', GetConversationHandler);
+  soapHandlerRegistry.register('GetCompletion', GetCompletionHandler);
+  soapHandlerRegistry.register('BranchConversation', BranchConversationHandler);
+  soapHandlerRegistry.register('GetBranding', GetBrandingHandler);
+  soapHandlerRegistry.register('CommitToolCall', CommitToolCallHandler);
+  soapHandlerRegistry.register('CommitToolResult', CommitToolResultHandler);
+  soapHandlerRegistry.register('CommitFile', CommitFileHandler);
+  soapHandlerRegistry.register('GetFile', GetFileHandler);
+  soapHandlerRegistry.register('ListConversations', ListConversationsHandler);
+}
+
+export { soapHandlerRegistry };

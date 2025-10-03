@@ -172,6 +172,24 @@
         </xsd:complexType>
       </xsd:element>
 
+      <!-- GetCompletion Request/Response -->
+      <xsd:element name="GetCompletionRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="branchName" type="xsd:string" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetCompletionResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="message" type="tns:Message"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
       <!-- ListConversations Request/Response -->
       <xsd:element name="ListConversationsRequest">
         <xsd:complexType>
@@ -354,6 +372,13 @@
     <part name="parameters" element="tns:GetFileResponse"/>
   </message>
 
+  <message name="GetCompletionRequestMessage">
+    <part name="parameters" element="tns:GetCompletionRequest"/>
+  </message>
+  <message name="GetCompletionResponseMessage">
+    <part name="parameters" element="tns:GetCompletionResponse"/>
+  </message>
+
   <message name="ListConversationsRequestMessage">
     <part name="parameters" element="tns:ListConversationsRequest"/>
   </message>
@@ -435,6 +460,13 @@
     <operation name="GetFile">
       <input message="tns:GetFileRequestMessage"/>
       <output message="tns:GetFileResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="GetCompletion">
+      <input message="tns:GetCompletionRequestMessage"/>
+      <output message="tns:GetCompletionResponseMessage"/>
       <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
       <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
     </operation>
@@ -582,6 +614,22 @@
 
     <operation name="GetFile">
       <soap:operation soapAction="http://soapy.example.com/GetFile"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="GetCompletion">
+      <soap:operation soapAction="http://soapy.example.com/GetCompletion"/>
       <input>
         <soap:body use="literal"/>
       </input>

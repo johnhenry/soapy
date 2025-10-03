@@ -189,15 +189,11 @@ export class SoapClient {
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Pure SOAP direct response (non-streaming): submit message, backend returns AI response synchronously
-    const result = await this.sendMessage(id, role, content, branch, provider, model);
+    await this.sendMessage(id, role, content, branch, provider, model);
 
-    // In pure SOAP mode, the backend would return the full conversation including AI response
-    // For now, just indicate completion
-    yield {
-      type: 'done',
-      sequenceNumber: result.sequenceNumber,
-      commitHash: result.commitHash,
-    };
+    // Backend CommitMessage now calls AI and stores response
+    // Use GetCompletion to retrieve the AI response
+    yield* this.getCompletionNonStream(id, branch, provider, model);
   }
 
   async *getCompletionNonStream(
@@ -214,9 +210,9 @@ export class SoapClient {
 
     const doc = await this.soapCall('GetCompletion', body);
 
-    const content = this.getElementText(doc, 'content');
-    const sequenceNumber = this.getElementInt(doc, 'sequenceNumber');
-    const commitHash = this.getElementText(doc, 'commitHash');
+    const content = this.getElementText(doc, 'tns:content');
+    const sequenceNumber = this.getElementInt(doc, 'tns:sequenceNumber');
+    const commitHash = this.getElementText(doc, 'tns:commitHash');
 
     if (content) {
       yield {
