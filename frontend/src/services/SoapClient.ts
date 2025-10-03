@@ -174,6 +174,7 @@ export class SoapClient {
     model?: string,
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
+    const branchElement = branch ? `<tns:branchName>${branch}</tns:branchName>` : '';
     const providerElement = provider ? `<tns:aiProvider>${provider}</tns:aiProvider>` : '';
     const modelElement = model ? `<tns:model>${model}</tns:model>` : '';
 
@@ -206,6 +207,7 @@ export class SoapClient {
       <tns:conversationId>${id}</tns:conversationId>
       <tns:role>${role}</tns:role>
       <tns:content><![CDATA[${content}]]></tns:content>
+      ${branchElement}
       ${providerElement}
       ${modelElement}${attachmentsXml}
     </tns:CommitMessageRequest>`;
@@ -395,5 +397,50 @@ export class SoapClient {
   streamMessages(id: string, onMessage: (data: unknown) => void, onError: (error: Error) => void): () => void {
     // SOAP doesn't support server push streaming
     throw new Error('streamMessages not supported in SOAP protocol');
+  }
+
+  async listProviders(): Promise<string[]> {
+    const body = `<tns:ListProvidersRequest>
+    </tns:ListProvidersRequest>`;
+
+    const doc = await this.soapCall('ListProviders', body);
+
+    const providers: string[] = [];
+    const providerElements = doc.getElementsByTagName('tns:providers');
+
+    for (let i = 0; i < providerElements.length; i++) {
+      const provider = providerElements[i]?.textContent || '';
+      if (provider) {
+        providers.push(provider);
+      }
+    }
+
+    return providers;
+  }
+
+  async listModels(provider: string): Promise<Array<{ id: string; name: string }>> {
+    const body = `<tns:GetProviderModelsRequest>
+      <tns:provider>${provider}</tns:provider>
+    </tns:GetProviderModelsRequest>`;
+
+    const doc = await this.soapCall('GetProviderModels', body);
+
+    const models: Array<{ id: string; name: string }> = [];
+    const modelElements = doc.getElementsByTagName('tns:models');
+
+    for (let i = 0; i < modelElements.length; i++) {
+      const modelEl = modelElements[i];
+      const getText = (tag: string) => {
+        const el = modelEl.getElementsByTagName(`tns:${tag}`)[0];
+        return el?.textContent || '';
+      };
+
+      models.push({
+        id: getText('id'),
+        name: getText('name'),
+      });
+    }
+
+    return models;
   }
 }

@@ -12,6 +12,8 @@ import { DeleteConversationHandler } from './DeleteConversation.js';
 import { ListBranchesHandler } from './ListBranches.js';
 import { DeleteBranchHandler } from './DeleteBranch.js';
 import { ListFilesHandler } from './ListFiles.js';
+import { ListProvidersHandler } from './ListProviders.js';
+import { GetProviderModelsHandler } from './GetProviderModels.js';
 
 // Register all SOAP operation handlers
 export function registerSoapHandlers(): void {
@@ -28,6 +30,8 @@ export function registerSoapHandlers(): void {
   soapHandlerRegistry.register('ListBranches', ListBranchesHandler);
   soapHandlerRegistry.register('DeleteBranch', DeleteBranchHandler);
   soapHandlerRegistry.register('ListFiles', ListFilesHandler);
+  soapHandlerRegistry.register('ListProviders', ListProvidersHandler);
+  soapHandlerRegistry.register('GetProviderModels', GetProviderModelsHandler);
 }
 
 export { soapHandlerRegistry };

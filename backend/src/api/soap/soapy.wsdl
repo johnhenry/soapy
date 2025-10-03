@@ -17,6 +17,7 @@
             <xsd:element name="conversationId" type="xsd:string"/>
             <xsd:element name="role" type="tns:MessageRole"/>
             <xsd:element name="content" type="xsd:string"/>
+            <xsd:element name="branchName" type="xsd:string" minOccurs="0"/>
             <xsd:element name="aiProvider" type="xsd:string" minOccurs="0"/>
             <xsd:element name="model" type="xsd:string" minOccurs="0"/>
             <xsd:element name="attachments" type="tns:Attachment" minOccurs="0" maxOccurs="unbounded"/>
@@ -191,6 +192,40 @@
         </xsd:complexType>
       </xsd:element>
 
+      <!-- ListProviders Request/Response -->
+      <xsd:element name="ListProvidersRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <!-- Empty request -->
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="ListProvidersResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="providers" type="xsd:string" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- GetProviderModels Request/Response -->
+      <xsd:element name="GetProviderModelsRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="provider" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetProviderModelsResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="models" type="tns:ModelInfo" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
       <!-- ListConversations Request/Response -->
       <xsd:element name="ListConversationsRequest">
         <xsd:complexType>
@@ -338,6 +373,14 @@
         </xsd:sequence>
       </xsd:complexType>
 
+      <xsd:complexType name="ModelInfo">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:string"/>
+          <xsd:element name="name" type="xsd:string"/>
+          <xsd:element name="provider" type="xsd:string"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
       <!-- Enums -->
       <xsd:simpleType name="MessageRole">
         <xsd:restriction base="xsd:string">
@@ -466,6 +509,20 @@
     <part name="parameters" element="tns:GetCompletionResponse"/>
   </message>
 
+  <message name="ListProvidersRequestMessage">
+    <part name="parameters" element="tns:ListProvidersRequest"/>
+  </message>
+  <message name="ListProvidersResponseMessage">
+    <part name="parameters" element="tns:ListProvidersResponse"/>
+  </message>
+
+  <message name="GetProviderModelsRequestMessage">
+    <part name="parameters" element="tns:GetProviderModelsRequest"/>
+  </message>
+  <message name="GetProviderModelsResponseMessage">
+    <part name="parameters" element="tns:GetProviderModelsResponse"/>
+  </message>
+
   <message name="ListConversationsRequestMessage">
     <part name="parameters" element="tns:ListConversationsRequest"/>
   </message>
@@ -584,6 +641,19 @@
       <output message="tns:GetCompletionResponseMessage"/>
       <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
       <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="ListProviders">
+      <input message="tns:ListProvidersRequestMessage"/>
+      <output message="tns:ListProvidersResponseMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="GetProviderModels">
+      <input message="tns:GetProviderModelsRequestMessage"/>
+      <output message="tns:GetProviderModelsResponseMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+      <fault name="ProviderUnavailableFault" message="tns:ProviderUnavailableFaultMessage"/>
     </operation>
 
     <operation name="ListConversations">
@@ -784,6 +854,35 @@
       </fault>
       <fault name="UnauthorizedAccessFault">
         <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="ListProviders">
+      <soap:operation soapAction="http://soapy.example.com/ListProviders"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="GetProviderModels">
+      <soap:operation soapAction="http://soapy.example.com/GetProviderModels"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+      <fault name="ProviderUnavailableFault">
+        <soap:fault name="ProviderUnavailableFault" use="literal"/>
       </fault>
     </operation>
 

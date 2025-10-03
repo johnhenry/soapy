@@ -9,6 +9,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
   const conversationId = extract(request, 'conversationId');
   const role = extract(request, 'role') as 'user' | 'assistant' | 'system';
   const content = extractCDATA(request, 'content');
+  const branchName = extract(request, 'branchName') || undefined;
   const aiProvider = (extract(request, 'aiProvider') || 'openai') as any;
   const model = extract(request, 'model') || (aiProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
 
@@ -62,7 +63,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
     content,
     timestamp: new Date(),
     attachments,
-  });
+  }, branchName);
 
   fastify.log.info({
     conversationId,
@@ -77,7 +78,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
   if (role === 'user') {
     try {
       // Get conversation items for context
-      const items = await getConversationItems(conversationId);
+      const items = await getConversationItems(conversationId, branchName);
 
       // Format messages for AI (OpenAI vision format)
       const messages = await Promise.all(
@@ -142,7 +143,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
         timestamp: new Date(),
         aiProvider,
         model: usedModel,
-      });
+      }, branchName);
 
       fastify.log.info({ conversationId, sequenceNumber: aiResult.sequenceNumber }, 'AI response committed');
     } catch (error) {

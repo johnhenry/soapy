@@ -8,12 +8,34 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
 }
 
 .header-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--primary);
+}
+
+.protocol-indicator {
+  margin-inline-start: auto;
+  font-family: monospace;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: help;
+  user-select: none;
+  transition: all 0.2s;
+  white-space: pre-line;
+}
+
+.protocol-indicator:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+  color: var(--text);
 }
 
 .header-settings {
