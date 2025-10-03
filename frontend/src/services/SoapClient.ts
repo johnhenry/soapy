@@ -125,6 +125,25 @@ export class SoapClient {
         return el?.textContent || '';
       };
 
+      // Parse attachments if present
+      const attachmentElements = msgEl.getElementsByTagName('tns:attachments');
+      const attachments: Array<{ filename: string; contentType: string; size: number; path: string }> = [];
+
+      for (let j = 0; j < attachmentElements.length; j++) {
+        const attEl = attachmentElements[j];
+        const getAttText = (tag: string) => {
+          const el = attEl.getElementsByTagName(`tns:${tag}`)[0];
+          return el?.textContent || '';
+        };
+
+        attachments.push({
+          filename: getAttText('filename'),
+          contentType: getAttText('contentType'),
+          size: parseInt(getAttText('size'), 10) || 0,
+          path: getAttText('path'),
+        });
+      }
+
       messages.push({
         sequenceNumber: parseInt(getText('sequenceNumber'), 10) || 0,
         role: getText('role') as 'user' | 'assistant' | 'system',
@@ -133,6 +152,7 @@ export class SoapClient {
         aiProvider: getText('aiProvider') || undefined,
         model: getText('model') || undefined,
         commitHash: getText('commitHash'),
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
     }
 
@@ -154,22 +174,40 @@ export class SoapClient {
     model?: string,
     files?: File[]
   ): Promise<{ sequenceNumber: number; commitHash: string }> {
-    // If files are attached, upload them first
-    if (files && files.length > 0) {
-      for (const file of files) {
-        await this.uploadFile(id, file);
-      }
-    }
-
     const providerElement = provider ? `<tns:aiProvider>${provider}</tns:aiProvider>` : '';
     const modelElement = model ? `<tns:model>${model}</tns:model>` : '';
+
+    // Convert files to base64 and include as attachments
+    let attachmentsXml = '';
+    if (files && files.length > 0) {
+      for (const file of files) {
+        // Read file as base64
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode(...chunk);
+        }
+        const base64 = btoa(binary);
+
+        attachmentsXml += `
+      <tns:attachments>
+        <tns:filename>${file.name}</tns:filename>
+        <tns:contentType>${file.type}</tns:contentType>
+        <tns:size>${file.size}</tns:size>
+        <tns:data>${base64}</tns:data>
+      </tns:attachments>`;
+      }
+    }
 
     const body = `<tns:CommitMessageRequest>
       <tns:conversationId>${id}</tns:conversationId>
       <tns:role>${role}</tns:role>
       <tns:content><![CDATA[${content}]]></tns:content>
       ${providerElement}
-      ${modelElement}
+      ${modelElement}${attachmentsXml}
     </tns:CommitMessageRequest>`;
 
     const doc = await this.soapCall('CommitMessage', body);

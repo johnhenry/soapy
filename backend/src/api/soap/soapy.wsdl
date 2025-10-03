@@ -19,6 +19,7 @@
             <xsd:element name="content" type="xsd:string"/>
             <xsd:element name="aiProvider" type="xsd:string" minOccurs="0"/>
             <xsd:element name="model" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="attachments" type="tns:Attachment" minOccurs="0" maxOccurs="unbounded"/>
           </xsd:sequence>
         </xsd:complexType>
       </xsd:element>
@@ -325,6 +326,15 @@
           <xsd:element name="name" type="xsd:string"/>
           <xsd:element name="sourceMessageNumber" type="xsd:int"/>
           <xsd:element name="messageCount" type="xsd:int"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="Attachment">
+        <xsd:sequence>
+          <xsd:element name="filename" type="xsd:string"/>
+          <xsd:element name="contentType" type="xsd:string"/>
+          <xsd:element name="size" type="xsd:int"/>
+          <xsd:element name="data" type="xsd:base64Binary"/>
         </xsd:sequence>
       </xsd:complexType>
 

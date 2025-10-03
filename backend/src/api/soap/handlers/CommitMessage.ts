@@ -4,13 +4,45 @@ import { gitStorage } from '../../../lib/git-storage/index.js';
 import { aiOrchestrator } from '../../../lib/ai-providers/index.js';
 
 export const CommitMessageHandler: SoapOperationHandler = async (request, context) => {
-  const { extractText, extractCDATA, fastify } = context;
+  const { extractText: extract, extractCDATA, fastify } = context;
 
-  const conversationId = extractText(request, 'conversationId');
-  const role = extractText(request, 'role') as 'user' | 'assistant' | 'system';
+  const conversationId = extract(request, 'conversationId');
+  const role = extract(request, 'role') as 'user' | 'assistant' | 'system';
   const content = extractCDATA(request, 'content');
-  const aiProvider = (extractText(request, 'aiProvider') || 'openai') as any;
-  const model = extractText(request, 'model') || (aiProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+  const aiProvider = (extract(request, 'aiProvider') || 'openai') as any;
+  const model = extract(request, 'model') || (aiProvider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+
+  // Extract attachments from SOAP request (if present)
+  let attachments: Array<{ filename: string; contentType: string; size: number; data: string }> | undefined;
+  const attachmentRegex = /<(?:\w+:)?attachments[^>]*>([\s\S]*?)<\/(?:\w+:)?attachments>/g;
+  const attachmentMatches = [...request.matchAll(attachmentRegex)];
+
+  fastify.log.info({ attachmentMatchCount: attachmentMatches.length }, 'Checking for SOAP attachments');
+
+  if (attachmentMatches.length > 0) {
+    attachments = [];
+    for (const match of attachmentMatches) {
+      const attachmentXml = match[1];
+      const filename = extract(attachmentXml, 'filename');
+      const contentType = extract(attachmentXml, 'contentType');
+      const sizeStr = extract(attachmentXml, 'size');
+      const data = extract(attachmentXml, 'data');
+
+      fastify.log.info({ filename, contentType, dataLength: data.length }, 'Parsed attachment from SOAP');
+
+      if (filename && data) {
+        attachments.push({
+          filename,
+          contentType,
+          size: parseInt(sizeStr, 10) || 0,
+          data,
+        });
+      }
+    }
+    if (attachments.length === 0) {
+      attachments = undefined;
+    }
+  }
 
   // Create conversation if it doesn't exist
   if (!(await gitStorage.conversationExists(conversationId))) {
@@ -24,61 +56,7 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
     });
   }
 
-  // Check for uploaded files (from CommitFile calls) and include them as attachments
-  let attachments: Array<{ filename: string; contentType: string; size: number; data: string; path: string }> | undefined;
-  try {
-    const { join } = await import('path');
-    const fs = await import('fs/promises');
-    const conversationDir = join(process.cwd(), 'conversations', conversationId);
-    const filesDir = join(conversationDir, 'files');
-
-    try {
-      const fileList = await fs.readdir(filesDir);
-      if (fileList.length > 0) {
-        attachments = [];
-        for (const filename of fileList) {
-          const filePath = join(filesDir, filename);
-          const stats = await fs.stat(filePath);
-          const buffer = await fs.readFile(filePath);
-
-          // Infer content type from extension
-          const ext = filename.split('.').pop()?.toLowerCase();
-          const contentTypeMap: Record<string, string> = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'pdf': 'application/pdf',
-            'txt': 'text/plain',
-            'json': 'application/json',
-          };
-          const contentType = contentTypeMap[ext || ''] || 'application/octet-stream';
-
-          attachments.push({
-            filename,
-            contentType,
-            size: stats.size,
-            data: buffer.toString('base64'),
-            path: `files/${filename}`,
-          });
-
-          // Delete the file after reading it so it's only attached once
-          await fs.unlink(filePath);
-        }
-        fastify.log.info({ conversationId, attachmentCount: attachments.length }, 'Attaching uploaded files to message');
-      }
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') {
-        fastify.log.warn(err, 'Error reading files directory');
-      }
-    }
-  } catch (err) {
-    fastify.log.warn(err, 'Failed to check for uploaded files');
-  }
-
-  // Commit user message with attachments
-  // Note: commitMessage will re-save the attachments and add them to git
+  // Commit user message with attachments from SOAP request
   const userResult = await commitMessage(conversationId, {
     role,
     content,
@@ -86,7 +64,11 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
     attachments,
   });
 
-  fastify.log.info({ conversationId, sequenceNumber: userResult.sequenceNumber }, 'User message committed');
+  fastify.log.info({
+    conversationId,
+    sequenceNumber: userResult.sequenceNumber,
+    attachmentCount: attachments?.length || 0
+  }, 'User message committed');
 
   // If this is a user message, get AI response
   let aiResponse = '';
@@ -97,16 +79,49 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
       // Get conversation items for context
       const items = await getConversationItems(conversationId);
 
-      // Format messages for AI (simple text-only for now)
-      const messages = items
-        .filter(item => item.itemType === 'message')
-        .map(item => {
-          const msg = item as any;
-          return {
-            role: msg.role,
-            content: msg.content,
-          };
-        });
+      // Format messages for AI (OpenAI vision format)
+      const messages = await Promise.all(
+        items
+          .filter(item => item.itemType === 'message')
+          .map(async (item) => {
+            const msg = item as any;
+
+            // If message has attachments (images), format as vision content
+            if (msg.attachments && msg.attachments.length > 0) {
+              const { join } = await import('path');
+              const fs = await import('fs/promises');
+              const conversationDir = join(process.cwd(), 'conversations', conversationId);
+
+              const contentParts: any[] = [{ type: 'text', text: msg.content }];
+
+              for (const attachment of msg.attachments) {
+                // Only include images for vision
+                if (attachment.contentType.startsWith('image/')) {
+                  const filePath = join(conversationDir, attachment.path);
+                  const buffer = await fs.readFile(filePath);
+                  const base64Data = buffer.toString('base64');
+
+                  contentParts.push({
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${attachment.contentType};base64,${base64Data}`
+                    }
+                  });
+                }
+              }
+
+              return {
+                role: msg.role,
+                content: contentParts
+              };
+            } else {
+              return {
+                role: msg.role,
+                content: msg.content
+              };
+            }
+          })
+      );
 
       fastify.log.info({ provider: aiProvider, model, messageCount: messages.length }, 'Calling AI provider');
 

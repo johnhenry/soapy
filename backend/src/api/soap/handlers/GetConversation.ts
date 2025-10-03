@@ -45,6 +45,19 @@ export const GetConversationHandler: SoapOperationHandler = async (request, cont
     .filter(item => item.itemType === 'message')
     .map(item => {
       const msg = item as any;
+
+      // Build attachments XML if present
+      let attachmentsXml = '';
+      if (msg.attachments && msg.attachments.length > 0) {
+        attachmentsXml = msg.attachments.map((att: any) => `
+        <tns:attachments>
+          <tns:filename>${att.filename}</tns:filename>
+          <tns:contentType>${att.contentType}</tns:contentType>
+          <tns:size>${att.size}</tns:size>
+          <tns:path>${att.path}</tns:path>
+        </tns:attachments>`).join('');
+      }
+
       return `      <tns:messages>
         <tns:sequenceNumber>${msg.sequenceNumber}</tns:sequenceNumber>
         <tns:role>${msg.role}</tns:role>
@@ -52,7 +65,7 @@ export const GetConversationHandler: SoapOperationHandler = async (request, cont
         <tns:timestamp>${msg.timestamp}</tns:timestamp>
         ${msg.aiProvider ? `<tns:aiProvider>${msg.aiProvider}</tns:aiProvider>` : ''}
         ${msg.model ? `<tns:model>${msg.model}</tns:model>` : ''}
-        <tns:commitHash>${msg.commitHash}</tns:commitHash>
+        <tns:commitHash>${msg.commitHash}</tns:commitHash>${attachmentsXml}
       </tns:messages>`;
     })
     .join('\n');
