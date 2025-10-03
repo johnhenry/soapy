@@ -8,6 +8,12 @@ import { join } from 'path';
 import fs from 'fs';
 
 const restPlugin: FastifyPluginAsync = async (fastify) => {
+  // GET /v1/providers - List available AI providers
+  fastify.get('/v1/providers', async (_request, reply) => {
+    const providers = aiOrchestrator.getAvailableProviders();
+    reply.send({ providers });
+  });
+
   // DELETE /v1/chat/:id - Delete conversation
   fastify.delete('/v1/chat/:id', async (request, reply) => {
     const { id } = request.params as { id: string };

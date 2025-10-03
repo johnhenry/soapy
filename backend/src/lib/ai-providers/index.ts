@@ -59,6 +59,10 @@ export class AIProviderOrchestrator {
 
     return await provider.generate(prompt, options);
   }
+
+  getAvailableProviders(): ProviderType[] {
+    return Array.from(this.providers.keys());
+  }
 }
 
 // Singleton instance
@@ -83,7 +87,6 @@ if (process.env.OLLAMA_BASE_URL) {
   aiOrchestrator.registerProvider('ollama', {
     apiKey: process.env.OLLAMA_API_KEY || 'not-needed',
     baseURL: process.env.OLLAMA_BASE_URL,
-    model: process.env.OLLAMA_MODEL || 'llama2',
   });
 }
 
@@ -92,7 +95,6 @@ if (process.env.LMSTUDIO_BASE_URL) {
   aiOrchestrator.registerProvider('lmstudio', {
     apiKey: process.env.LMSTUDIO_API_KEY || 'not-needed',
     baseURL: process.env.LMSTUDIO_BASE_URL,
-    model: process.env.LMSTUDIO_MODEL,
   });
 }
 
@@ -101,6 +103,5 @@ if (process.env.OPENAI_COMPATIBLE_BASE_URL) {
   aiOrchestrator.registerProvider('openai-compatible', {
     apiKey: process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed',
     baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL,
-    model: process.env.OPENAI_COMPATIBLE_MODEL,
   });
 }

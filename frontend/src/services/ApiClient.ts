@@ -49,6 +49,11 @@ export class ApiClient {
     return this.responseClient.listConversations();
   }
 
+  async listProviders(): Promise<AIProvider[]> {
+    // Always use REST for provider list (SOAP doesn't have this endpoint)
+    return this.restClient.listProviders();
+  }
+
   async getConversation(id: string, branch?: string): Promise<Conversation> {
     if (this.responseProtocol === 'soap') {
       return this.soapClient.getConversation(id, 'soap', branch);

@@ -24,6 +24,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([]);
 
   // Model lists for each provider
   const providerModels: Record<AIProvider, string[]> = {
@@ -34,12 +35,35 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     'openai-compatible': ['default'], // Custom endpoints may vary
   };
 
+  const providerNames: Record<AIProvider, string> = {
+    'openai': 'OpenAI',
+    'anthropic': 'Anthropic',
+    'ollama': 'Ollama (Local)',
+    'lmstudio': 'LM Studio (Local)',
+    'openai-compatible': 'Custom OpenAI-Compatible',
+  };
+
   const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.directResponse, config.streaming));
 
   useEffect(() => {
     loadItems();
     loadBranches();
+    loadProviders();
   }, [conversationId, currentBranch]);
+
+  const loadProviders = async () => {
+    try {
+      const providers = await client.listProviders();
+      setAvailableProviders(providers);
+      // If current provider is not available, switch to first available
+      if (providers.length > 0 && !providers.includes(selectedProvider)) {
+        setSelectedProvider(providers[0]);
+        setSelectedModel(providerModels[providers[0]][0]);
+      }
+    } catch (err) {
+      console.error('Failed to load providers:', err);
+    }
+  };
 
   const loadItems = async () => {
     try {
@@ -263,11 +287,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
                   setSelectedProvider(newProvider);
                   setSelectedModel(providerModels[newProvider][0]);
                 }}>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="ollama">Ollama (Local)</option>
-                  <option value="lmstudio">LM Studio (Local)</option>
-                  <option value="openai-compatible">Custom OpenAI-Compatible</option>
+                  {availableProviders.map((provider) => (
+                    <option key={provider} value={provider}>{providerNames[provider]}</option>
+                  ))}
                 </select>
               </label>
               <label>
