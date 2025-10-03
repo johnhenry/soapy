@@ -4,7 +4,11 @@ import type { ToolResult } from '../../models/tool-result.js';
 
 export interface OpenAIMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
-  content: string | null;
+  content: string | null | Array<{
+    type: 'text' | 'image_url';
+    text?: string;
+    image_url?: { url: string };
+  }>;
   tool_calls?: Array<{
     id: string;
     type: 'function';
@@ -31,9 +35,39 @@ export function toOpenAI(
 
   // Convert regular messages
   for (const msg of messages) {
+    // Check if message has image attachments
+    const hasImages = msg.attachments?.some(att => att.contentType.startsWith('image/'));
+    
+    let content: OpenAIMessage['content'];
+    if (hasImages && msg.attachments) {
+      // Use content array format for vision
+      const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [
+        { type: 'text', text: msg.content }
+      ];
+      
+      // Add image attachments
+      for (const attachment of msg.attachments) {
+        if (attachment.contentType.startsWith('image/')) {
+          const imageUrl = attachment.data 
+            ? `data:${attachment.contentType};base64,${attachment.data}`
+            : attachment.path || '';
+          
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: imageUrl }
+          });
+        }
+      }
+      
+      content = contentParts;
+    } else {
+      // Use string format for text-only messages
+      content = msg.content;
+    }
+
     const openaiMsg: OpenAIMessage = {
       role: msg.role,
-      content: msg.content,
+      content,
     };
 
     // Find associated tool calls for this message
