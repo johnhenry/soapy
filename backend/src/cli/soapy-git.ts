@@ -12,7 +12,7 @@
 
 import { gitStorage } from '../lib/git-storage/index.js';
 import { getMessages } from '../lib/git-storage/message.js';
-import { getBranches } from '../lib/git-storage/branch.js';
+import { getBranches, createBranch, deleteBranch } from '../lib/git-storage/branch.js';
 
 const command = process.argv[2];
 const outputJson = process.argv.includes('--json');
