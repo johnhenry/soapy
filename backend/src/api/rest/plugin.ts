@@ -328,6 +328,44 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           parameters: tc.input
         }));
         usedModel = response.model;
+      } else if ((provider === 'ollama' || provider === 'lmstudio' || provider === 'openai-compatible') && aiOrchestrator.hasProvider(provider)) {
+        // Ollama, LM Studio, and custom OpenAI-compatible providers use OpenAI SDK
+        const OpenAI = (await import('openai')).default;
+
+        // Get the base URL from the registered provider
+        const providerConfig = aiOrchestrator.getProvider(provider);
+        const baseURL = provider === 'ollama' ? process.env.OLLAMA_BASE_URL :
+                        provider === 'lmstudio' ? process.env.LMSTUDIO_BASE_URL :
+                        process.env.OPENAI_COMPATIBLE_BASE_URL;
+
+        const openai = new OpenAI({
+          apiKey: provider === 'ollama' ? (process.env.OLLAMA_API_KEY || 'not-needed') :
+                  provider === 'lmstudio' ? (process.env.LMSTUDIO_API_KEY || 'not-needed') :
+                  (process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed'),
+          baseURL
+        });
+
+        const completion = await openai.chat.completions.create({
+          model,
+          messages: openaiMessages,
+          tools: tools.map(t => ({
+            type: 'function' as const,
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters
+            }
+          })),
+          tool_choice: 'auto'
+        });
+
+        const choice = completion.choices[0];
+        assistantContent = choice.message.content || '';
+        toolCalls = choice.message.tool_calls?.map((tc: any) => ({
+          name: tc.function.name,
+          parameters: JSON.parse(tc.function.arguments)
+        })) || [];
+        usedModel = completion.model;
       } else {
         reply.code(503).send({ error: 'AI provider not available' });
         return;
@@ -672,6 +710,34 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
             for await (const chunk of stream) {
               if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
                 const delta = chunk.delta.text;
+                fullResponse += delta;
+                reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
+              }
+            }
+          } else if ((provider === 'ollama' || provider === 'lmstudio' || provider === 'openai-compatible') && aiOrchestrator.hasProvider(provider)) {
+            // Ollama, LM Studio, and custom OpenAI-compatible providers use OpenAI SDK
+            const OpenAI = (await import('openai')).default;
+
+            const baseURL = provider === 'ollama' ? process.env.OLLAMA_BASE_URL :
+                            provider === 'lmstudio' ? process.env.LMSTUDIO_BASE_URL :
+                            process.env.OPENAI_COMPATIBLE_BASE_URL;
+
+            const openai = new OpenAI({
+              apiKey: provider === 'ollama' ? (process.env.OLLAMA_API_KEY || 'not-needed') :
+                      provider === 'lmstudio' ? (process.env.LMSTUDIO_API_KEY || 'not-needed') :
+                      (process.env.OPENAI_COMPATIBLE_API_KEY || 'not-needed'),
+              baseURL
+            });
+
+            const stream = await openai.chat.completions.create({
+              model,
+              messages: formattedMessages,
+              stream: true,
+            });
+
+            for await (const chunk of stream) {
+              const delta = chunk.choices[0]?.delta?.content || '';
+              if (delta) {
                 fullResponse += delta;
                 reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content: delta })}\n\n`);
               }
