@@ -18,9 +18,30 @@ const command = process.argv[2];
 const outputJson = process.argv.includes('--json');
 
 async function listConversations() {
-  console.log('Listing conversations...');
-  console.log('Note: Full implementation requires filesystem scanning');
-  console.log('Current storage directory:', process.env.CONVERSATIONS_DIR || './conversations');
+  try {
+    const conversations = await gitStorage.listConversations();
+
+    if (outputJson) {
+      console.log(JSON.stringify({ success: true, conversations }, null, 2));
+    } else {
+      console.log(`📋 Conversations:`);
+      console.log(`   Storage directory: ${process.env.CONVERSATIONS_DIR || './conversations'}`);
+      console.log(`   Total conversations: ${conversations.length}`);
+      conversations.forEach((conv) => {
+        console.log(`   - ${conv.id}`);
+        console.log(`     Created: ${conv.createdAt.toISOString()}`);
+        console.log(`     Main branch: ${conv.mainBranch}`);
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (outputJson) {
+      console.log(JSON.stringify({ success: false, error: message }, null, 2));
+    } else {
+      console.error(`❌ Error: ${message}`);
+    }
+    process.exit(1);
+  }
 }
 
 async function createConversation() {
@@ -107,7 +128,7 @@ async function getMessagesFromConversation() {
 
 async function listBranches() {
   const idIndex = process.argv.indexOf('--id');
-  
+
   if (idIndex === -1) {
     console.error('Error: --id is required');
     console.error('Usage: soapy git list-branches --id <conversationId>');
@@ -118,7 +139,7 @@ async function listBranches() {
 
   try {
     const branches = await getBranches(conversationId);
-    
+
     if (outputJson) {
       console.log(JSON.stringify({ success: true, branches }, null, 2));
     } else {
@@ -139,6 +160,106 @@ async function listBranches() {
   }
 }
 
+async function deleteConversation() {
+  const idIndex = process.argv.indexOf('--id');
+
+  if (idIndex === -1) {
+    console.error('Error: --id is required');
+    console.error('Usage: soapy git delete-conversation --id <conversationId>');
+    process.exit(1);
+  }
+
+  const conversationId = process.argv[idIndex + 1];
+
+  try {
+    await gitStorage.deleteConversation(conversationId);
+
+    if (outputJson) {
+      console.log(JSON.stringify({ success: true, conversationId }, null, 2));
+    } else {
+      console.log(`✅ Conversation deleted: ${conversationId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (outputJson) {
+      console.log(JSON.stringify({ success: false, error: message }, null, 2));
+    } else {
+      console.error(`❌ Error: ${message}`);
+    }
+    process.exit(1);
+  }
+}
+
+async function createBranchCommand() {
+  const idIndex = process.argv.indexOf('--id');
+  const nameIndex = process.argv.indexOf('--name');
+  const fromIndex = process.argv.indexOf('--from');
+
+  if (idIndex === -1 || nameIndex === -1 || fromIndex === -1) {
+    console.error('Error: --id, --name, and --from are required');
+    console.error('Usage: soapy git create-branch --id <conversationId> --name <branchName> --from <messageNumber>');
+    process.exit(1);
+  }
+
+  const conversationId = process.argv[idIndex + 1];
+  const branchName = process.argv[nameIndex + 1];
+  const fromMessage = parseInt(process.argv[fromIndex + 1], 10);
+
+  try {
+    const branch = await createBranch(conversationId, branchName, fromMessage);
+
+    if (outputJson) {
+      console.log(JSON.stringify({ success: true, branch }, null, 2));
+    } else {
+      console.log(`✅ Branch created: ${branchName}`);
+      console.log(`   Conversation: ${conversationId}`);
+      console.log(`   From message: ${fromMessage}`);
+      console.log(`   Created at: ${branch.createdAt}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (outputJson) {
+      console.log(JSON.stringify({ success: false, error: message }, null, 2));
+    } else {
+      console.error(`❌ Error: ${message}`);
+    }
+    process.exit(1);
+  }
+}
+
+async function deleteBranchCommand() {
+  const idIndex = process.argv.indexOf('--id');
+  const nameIndex = process.argv.indexOf('--name');
+
+  if (idIndex === -1 || nameIndex === -1) {
+    console.error('Error: --id and --name are required');
+    console.error('Usage: soapy git delete-branch --id <conversationId> --name <branchName>');
+    process.exit(1);
+  }
+
+  const conversationId = process.argv[idIndex + 1];
+  const branchName = process.argv[nameIndex + 1];
+
+  try {
+    await deleteBranch(conversationId, branchName);
+
+    if (outputJson) {
+      console.log(JSON.stringify({ success: true, conversationId, branchName }, null, 2));
+    } else {
+      console.log(`✅ Branch deleted: ${branchName}`);
+      console.log(`   Conversation: ${conversationId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (outputJson) {
+      console.log(JSON.stringify({ success: false, error: message }, null, 2));
+    } else {
+      console.error(`❌ Error: ${message}`);
+    }
+    process.exit(1);
+  }
+}
+
 // Command router
 if (!command || command === '--help' || command === '-h') {
   console.log(`
@@ -147,8 +268,11 @@ Usage: soapy git <command> [options]
 Commands:
   list-conversations           List all conversations
   create-conversation          Create a new conversation
+  delete-conversation          Delete a conversation
   get-messages                Get messages from a conversation
   list-branches               List branches in a conversation
+  create-branch               Create a new branch
+  delete-branch               Delete a branch
 
 Options:
   --json                      Output in JSON format
@@ -157,8 +281,11 @@ Options:
 Examples:
   soapy git list-conversations
   soapy git create-conversation --id conv-123 --org org-456
+  soapy git delete-conversation --id conv-123
   soapy git get-messages --id conv-123 --branch experiment-1
   soapy git list-branches --id conv-123 --json
+  soapy git create-branch --id conv-123 --name experiment-2 --from 5
+  soapy git delete-branch --id conv-123 --name experiment-1
   `);
   process.exit(0);
 }
@@ -171,11 +298,20 @@ switch (command) {
   case 'create-conversation':
     createConversation();
     break;
+  case 'delete-conversation':
+    deleteConversation();
+    break;
   case 'get-messages':
     getMessagesFromConversation();
     break;
   case 'list-branches':
     listBranches();
+    break;
+  case 'create-branch':
+    createBranchCommand();
+    break;
+  case 'delete-branch':
+    deleteBranchCommand();
     break;
   default:
     console.error(`Error: Unknown command '${command}'`);
