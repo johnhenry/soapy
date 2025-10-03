@@ -59,15 +59,10 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       setError(null);
       setStreaming(true);
 
-      // Debug: log files
-      console.log('handleSendMessage called with files:', files);
-
       // Force non-streaming mode when files are attached (streaming doesn't support files)
       const shouldStream = config.streaming && (!files || files.length === 0);
-      console.log('config.streaming:', config.streaming, 'files:', files, 'shouldStream:', shouldStream);
 
       if (shouldStream) {
-        console.log('Using STREAMING mode');
 
         // Optimistically add user message to UI immediately (streaming mode only)
         const optimisticUserMessage: Message & { itemType: 'message' } = {
@@ -123,8 +118,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           }
         }
       } else {
-        console.log('Using NON-STREAMING mode');
-
         // Non-streaming mode - better for tool calls
         // Add optimistic user message for immediate UI feedback
         const optimisticUserMessage: Message & { itemType: 'message' } = {
@@ -147,7 +140,6 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         };
         setItems([...items, optimisticUserMessage, loadingMessage]);
 
-        console.log('About to call client.sendMessage...');
         await client.sendMessage(
           conversationId,
           'user',
@@ -157,16 +149,12 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           selectedModel,
           files
         );
-        console.log('client.sendMessage completed');
 
         // Refresh to get all items including AI response and tool calls
-        console.log('Reloading items...');
         await loadItems();
-        console.log('Items reloaded');
 
         // Notify parent that conversation was created (for first message)
         if (items.length === 0) {
-          console.log('Notifying parent of conversation creation');
           onConversationCreated?.();
         }
       }
@@ -174,10 +162,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       console.error('ERROR in handleSendMessage:', err);
       setError(err instanceof Error ? err.message : 'Failed to send message');
       // Reload items to remove optimistic updates on error
-      console.log('Reloading items after error...');
       await loadItems();
     } finally {
-      console.log('Setting streaming to false');
       setStreaming(false);
     }
   };

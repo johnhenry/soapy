@@ -207,6 +207,75 @@
         </xsd:complexType>
       </xsd:element>
 
+      <!-- DeleteConversation Request/Response -->
+      <xsd:element name="DeleteConversationRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="DeleteConversationResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="success" type="xsd:boolean"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- ListBranches Request/Response -->
+      <xsd:element name="ListBranchesRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="ListBranchesResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="branches" type="tns:BranchInfo" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- DeleteBranch Request/Response -->
+      <xsd:element name="DeleteBranchRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+            <xsd:element name="branchName" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="DeleteBranchResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="success" type="xsd:boolean"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- ListFiles Request/Response -->
+      <xsd:element name="ListFilesRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="conversationId" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="ListFilesResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="files" type="tns:FileMetadata" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
       <!-- Complex Types -->
       <xsd:complexType name="Message">
         <xsd:sequence>
@@ -248,6 +317,14 @@
           <xsd:element name="id" type="xsd:string"/>
           <xsd:element name="title" type="xsd:string"/>
           <xsd:element name="updatedAt" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="BranchInfo">
+        <xsd:sequence>
+          <xsd:element name="name" type="xsd:string"/>
+          <xsd:element name="sourceMessageNumber" type="xsd:int"/>
+          <xsd:element name="messageCount" type="xsd:int"/>
         </xsd:sequence>
       </xsd:complexType>
 
@@ -386,6 +463,34 @@
     <part name="parameters" element="tns:ListConversationsResponse"/>
   </message>
 
+  <message name="DeleteConversationRequestMessage">
+    <part name="parameters" element="tns:DeleteConversationRequest"/>
+  </message>
+  <message name="DeleteConversationResponseMessage">
+    <part name="parameters" element="tns:DeleteConversationResponse"/>
+  </message>
+
+  <message name="ListBranchesRequestMessage">
+    <part name="parameters" element="tns:ListBranchesRequest"/>
+  </message>
+  <message name="ListBranchesResponseMessage">
+    <part name="parameters" element="tns:ListBranchesResponse"/>
+  </message>
+
+  <message name="DeleteBranchRequestMessage">
+    <part name="parameters" element="tns:DeleteBranchRequest"/>
+  </message>
+  <message name="DeleteBranchResponseMessage">
+    <part name="parameters" element="tns:DeleteBranchResponse"/>
+  </message>
+
+  <message name="ListFilesRequestMessage">
+    <part name="parameters" element="tns:ListFilesRequest"/>
+  </message>
+  <message name="ListFilesResponseMessage">
+    <part name="parameters" element="tns:ListFilesResponse"/>
+  </message>
+
   <!-- Fault Messages -->
   <message name="InvalidConversationFaultMessage">
     <part name="fault" element="tns:InvalidConversationFault"/>
@@ -474,6 +579,34 @@
     <operation name="ListConversations">
       <input message="tns:ListConversationsRequestMessage"/>
       <output message="tns:ListConversationsResponseMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="DeleteConversation">
+      <input message="tns:DeleteConversationRequestMessage"/>
+      <output message="tns:DeleteConversationResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="ListBranches">
+      <input message="tns:ListBranchesRequestMessage"/>
+      <output message="tns:ListBranchesResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="DeleteBranch">
+      <input message="tns:DeleteBranchRequestMessage"/>
+      <output message="tns:DeleteBranchResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
+      <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
+    </operation>
+
+    <operation name="ListFiles">
+      <input message="tns:ListFilesRequestMessage"/>
+      <output message="tns:ListFilesResponseMessage"/>
+      <fault name="InvalidConversationFault" message="tns:InvalidConversationFaultMessage"/>
       <fault name="UnauthorizedAccessFault" message="tns:UnauthorizedAccessFaultMessage"/>
     </operation>
   </portType>
@@ -652,6 +785,70 @@
       <output>
         <soap:body use="literal"/>
       </output>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="DeleteConversation">
+      <soap:operation soapAction="http://soapy.example.com/DeleteConversation"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="ListBranches">
+      <soap:operation soapAction="http://soapy.example.com/ListBranches"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="DeleteBranch">
+      <soap:operation soapAction="http://soapy.example.com/DeleteBranch"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
+      <fault name="UnauthorizedAccessFault">
+        <soap:fault name="UnauthorizedAccessFault" use="literal"/>
+      </fault>
+    </operation>
+
+    <operation name="ListFiles">
+      <soap:operation soapAction="http://soapy.example.com/ListFiles"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+      <fault name="InvalidConversationFault">
+        <soap:fault name="InvalidConversationFault" use="literal"/>
+      </fault>
       <fault name="UnauthorizedAccessFault">
         <soap:fault name="UnauthorizedAccessFault" use="literal"/>
       </fault>

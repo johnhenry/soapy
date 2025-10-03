@@ -76,11 +76,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
     let result;
     try {
-      // Debug: log attachments
-      if (body.attachments) {
-        console.log('Received attachments:', body.attachments.map(a => ({ filename: a.filename, size: a.size, contentType: a.contentType })));
-      }
-
       // Store user message (with branch context and attachments)
       result = await commitMessage(id, {
         role: body.role,
@@ -149,7 +144,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           const buffer = await fs.promises.readFile(filePath);
           return buffer.toString('base64');
         } catch (error) {
-          console.error('Failed to read attachment:', filename, error);
           return null;
         }
       }
@@ -183,32 +177,26 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
       // Format messages for OpenAI (with vision support and tool calls/results)
       const openaiMessages: any[] = [];
-      console.log('Building conversation context. Total items:', items.length);
 
       for (const item of items) {
         if (item.itemType === 'message') {
           const message = item as any;
-          console.log(`Message ${message.sequenceNumber}: role=${message.role}, has attachments=${!!message.attachments}, count=${message.attachments?.length || 0}`);
 
           // If message has attachments (images), format as vision content
           if (message.attachments && message.attachments.length > 0) {
             const contentParts: any[] = [{ type: 'text', text: message.content }];
 
             for (const attachment of message.attachments) {
-              console.log(`  Attachment: ${attachment.filename}, type=${attachment.contentType}, path=${attachment.path}`);
               // Only include images for vision
               if (attachment.contentType.startsWith('image/')) {
                 const base64Data = await readAttachment(attachment.filename);
                 if (base64Data) {
-                  console.log(`  ✓ Loaded image ${attachment.filename} (${base64Data.length} chars base64)`);
                   contentParts.push({
                     type: 'image_url',
                     image_url: {
                       url: `data:${attachment.contentType};base64,${base64Data}`
                     }
                   });
-                } else {
-                  console.log(`  ✗ Failed to load image ${attachment.filename}`);
                 }
               }
             }
@@ -467,7 +455,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
       reply.send(results);
     } catch (error) {
-      console.error('Completion error:', error);
       reply.code(500).send({ error: 'AI completion failed' });
     }
   });
@@ -600,38 +587,31 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
               const buffer = await fs.promises.readFile(filePath);
               return buffer.toString('base64');
             } catch (error) {
-              console.error('[STREAM] Failed to read attachment:', filename, error);
               return null;
             }
           }
 
           // Format messages for AI with vision support
           const formattedMessages: any[] = [];
-          console.log('[STREAM] Building conversation context. Total items:', items.length);
 
           for (const item of items) {
             if (item.itemType === 'message') {
               const message = item as any;
-              console.log(`[STREAM] Message ${message.sequenceNumber}: role=${message.role}, has attachments=${!!message.attachments}, count=${message.attachments?.length || 0}`);
 
               // If message has attachments (images), format as vision content
               if (message.attachments && message.attachments.length > 0) {
                 const contentParts: any[] = [{ type: 'text', text: message.content }];
 
                 for (const attachment of message.attachments) {
-                  console.log(`[STREAM]   Attachment: ${attachment.filename}, type=${attachment.contentType}`);
                   if (attachment.contentType.startsWith('image/')) {
                     const base64Data = await readAttachment(attachment.filename);
                     if (base64Data) {
-                      console.log(`[STREAM]   ✓ Loaded image ${attachment.filename} (${base64Data.length} chars base64)`);
                       contentParts.push({
                         type: 'image_url',
                         image_url: {
                           url: `data:${attachment.contentType};base64,${base64Data}`
                         }
                       });
-                    } else {
-                      console.log(`[STREAM]   ✗ Failed to load image ${attachment.filename}`);
                     }
                   }
                 }
@@ -707,7 +687,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
           reply.raw.write(`data: ${JSON.stringify({ type: 'done', sequenceNumber: assistantResult.sequenceNumber, commitHash: assistantResult.commitHash })}\n\n`);
         } catch (error) {
-          console.error('AI generation error:', error);
           reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'AI generation failed' })}\n\n`);
         }
       } else {
@@ -910,7 +889,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         .header('Content-Disposition', `attachment; filename="${filename}"`)
         .send(fileData);
     } catch (error) {
-      console.error('File download error:', error);
       reply.code(500).send({ error: 'Failed to download file' });
     }
   });
