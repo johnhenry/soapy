@@ -9,6 +9,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# TanStack Router generated files
+**/routeTree.gen.ts
+
 # Environment
 .env
 .env.local

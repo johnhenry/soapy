@@ -4,6 +4,7 @@ import { join } from 'path';
 import type { Message } from '../../models/message.js';
 import type { ToolCall } from '../../models/tool-call.js';
 import type { ToolResult } from '../../models/tool-result.js';
+import { getNamespacedPath } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -24,7 +25,7 @@ export async function commitMessage(
   message: Omit<Message, 'sequenceNumber' | 'commitHash'>,
   branch?: string
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Checkout the branch if specified
   const originalBranch = await git.currentBranch({ fs, dir });
@@ -127,7 +128,7 @@ export async function commitToolCall(
   conversationId: string,
   toolCall: Omit<ToolCall, 'sequenceNumber' | 'commitHash'>
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get next sequence number
   const sequenceNumber = await getNextSequenceNumber(dir);
@@ -174,7 +175,7 @@ export async function commitToolResult(
   conversationId: string,
   toolResult: Omit<ToolResult, 'sequenceNumber' | 'commitHash'>
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get next sequence number
   const sequenceNumber = await getNextSequenceNumber(dir);
@@ -223,7 +224,7 @@ export async function getConversationItems(
   conversationId: string,
   branch?: string
 ): Promise<ConversationItem[]> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get current branch so we can restore it
   const originalBranch = await git.currentBranch({ fs, dir });

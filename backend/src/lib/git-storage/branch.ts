@@ -2,6 +2,7 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Branch } from '../../models/branch.js';
+import { getNamespacedPath } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -11,7 +12,7 @@ export async function createBranch(
   fromMessageNumber: number,
   creatorId: string
 ): Promise<{ branchRef: string; createdAt: Date }> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get all commits in reverse chronological order from current branch
   // This allows branching from any branch, not just main
@@ -113,7 +114,7 @@ export async function createBranch(
 }
 
 export async function getBranches(conversationId: string): Promise<Branch[]> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
   const branchesPath = join(dir, '.soapy-branches.json');
 
   try {
@@ -136,7 +137,7 @@ export async function deleteBranch(
     throw new Error('Cannot delete main branch');
   }
 
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Delete the Git branch (needs full ref path)
   await git.deleteBranch({ fs, dir, ref: `refs/heads/${branchName}` });

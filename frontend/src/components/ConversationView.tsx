@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useApi } from '../context/ApiContext';
 import { ApiClient } from '../services/ApiClient';
 import { MessageList } from './MessageList';
@@ -20,18 +21,26 @@ import { X } from 'lucide-react';
 import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
 
 interface ConversationViewProps {
+  appsection: string;
+  namespace: string;
   conversationId: string;
   onConversationCreated?: () => void;
 }
 
-export function ConversationView({ conversationId, onConversationCreated }: ConversationViewProps) {
+export function ConversationView({ appsection, namespace, conversationId, onConversationCreated }: ConversationViewProps) {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false }) as { branchId?: string };
   const { config } = useApi();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState('main');
+  // Use branchId from URL if present, otherwise default to 'main'
+  const currentBranch = params.branchId || 'main';
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
+  
+  // Create namespaced conversation ID for API calls
+  const namespacedId = `${namespace}/${conversationId}`;
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([]);
@@ -88,7 +97,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     try {
       setLoading(true);
       setError(null);
-      const conversationItems = await client.getConversationItems(conversationId, currentBranch !== 'main' ? currentBranch : undefined);
+      const conversationItems = await client.getConversationItems(namespacedId, currentBranch !== 'main' ? currentBranch : undefined);
       setItems(conversationItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation');
@@ -99,7 +108,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
   const loadBranches = async () => {
     try {
-      const branchList = await client.getBranches(conversationId);
+      const branchList = await client.getBranches(namespacedId);
       setBranches(branchList);
     } catch (err) {
       console.error('Failed to load branches:', err);
@@ -140,7 +149,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         // Stream the response
         let streamedContent = '';
         for await (const chunk of client.sendMessageStream(
-          conversationId,
+          namespacedId,
           'user',
           content,
           currentBranch !== 'main' ? currentBranch : undefined,
@@ -193,7 +202,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         setItems([...items, optimisticUserMessage, loadingMessage]);
 
         await client.sendMessage(
-          conversationId,
+          namespacedId,
           'user',
           content,
           currentBranch !== 'main' ? currentBranch : undefined,
@@ -223,16 +232,16 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const handleBranchFromMessage = async (sequenceNumber: number, branchName: string) => {
     try {
       setError(null);
-      await client.createBranch(conversationId, branchName, sequenceNumber);
+      await client.createBranch(namespacedId, branchName, sequenceNumber);
 
       // Reload branches to update dropdown
       await loadBranches();
 
-      // Switch to the new branch
-      setCurrentBranch(branchName);
-
-      // Reload items on the new branch
-      await loadItems();
+      // Switch to the new branch via URL navigation
+      navigate({
+        to: '/user/$conversationId/branch/$branchId',
+        params: { conversationId: namespacedId, branchId: branchName }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
     }
@@ -245,10 +254,10 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
     try {
       setError(null);
-      await client.deleteBranch(conversationId, currentBranch);
+      await client.deleteBranch(namespacedId, currentBranch);
 
-      // Switch to main
-      setCurrentBranch('main');
+      // Switch to main via URL navigation
+      navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
 
       // Reload branches
       await loadBranches();
@@ -263,7 +272,19 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="branch-select" className="text-sm">Branch:</Label>
-            <Select value={currentBranch} onValueChange={setCurrentBranch}>
+            <Select 
+              value={currentBranch} 
+              onValueChange={(branch) => {
+                if (branch === 'main') {
+                  navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
+                } else {
+                  navigate({
+                    to: '/user/$conversationId/branch/$branchId',
+                    params: { conversationId: namespacedId, branchId: branch }
+                  });
+                }
+              }}
+            >
               <SelectTrigger id="branch-select" className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
@@ -306,7 +327,16 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           onBranchFromMessage={handleBranchFromMessage}
           branches={branches}
           currentBranch={currentBranch}
-          onBranchSwitch={setCurrentBranch}
+          onBranchSwitch={(branch) => {
+            if (branch === 'main') {
+              navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
+            } else {
+              navigate({
+                to: '/user/$conversationId/branch/$branchId',
+                params: { conversationId: namespacedId, branchId: branch }
+              });
+            }
+          }}
         />
         <div className="border-t p-3 bg-muted/50 flex items-center gap-4">
           <div className="flex items-center gap-2">

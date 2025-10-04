@@ -4,6 +4,7 @@ import { commitMessage, getMessages, getConversationItems, commitToolCall, commi
 import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
 import { aiOrchestrator, type ProviderType } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
+import { getNamespacedPath } from '../../lib/git-storage/namespace.js';
 import { join } from 'path';
 import fs from 'fs';
 
@@ -194,7 +195,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         const fs = await import('fs');
         const { join } = await import('path');
         const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = join(CONVERSATIONS_DIR, id);
+        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
         await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
       }
     }
@@ -246,7 +247,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       const fs = await import('fs');
       const { join } = await import('path');
       const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-      const conversationDir = join(CONVERSATIONS_DIR, id);
+      const conversationDir = getNamespacedPath(CONVERSATIONS_DIR, id);
 
       async function readAttachment(filename: string): Promise<string | null> {
         try {
@@ -533,7 +534,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         const fs = await import('fs');
         const { join } = await import('path');
         const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = join(CONVERSATIONS_DIR, id);
+        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
         await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
       }
 
@@ -577,7 +578,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         return;
       }
 
-      const conversationDir = join(process.env.CONVERSATIONS_DIR || './conversations', id);
+      const conversationDir = getNamespacedPath(process.env.CONVERSATIONS_DIR || './conversations', id);
 
       // Helper function to read file attachments
       async function readAttachment(filename: string): Promise<string | null> {
@@ -816,7 +817,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
 
           // Build full conversation context with vision support
           const items = await getConversationItems(id, body.branch);
-          const conversationDir = join(process.env.CONVERSATIONS_DIR || './conversations', id);
+          const conversationDir = getNamespacedPath(process.env.CONVERSATIONS_DIR || './conversations', id);
 
           // Helper to read file attachments
           async function readAttachment(filename: string): Promise<string | null> {
@@ -938,7 +939,7 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         const fs = await import('fs');
         const { join } = await import('path');
         const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = join(CONVERSATIONS_DIR, id);
+        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
         await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
       }
       reply.raw.end();
