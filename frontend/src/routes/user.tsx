@@ -1,17 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/user')({
-  component: UserRedirectComponent,
+  component: () => <Outlet />,
 });
-
-function UserRedirectComponent() {
-  const navigate = useNavigate();
-
-  // Redirect to home
-  useEffect(() => {
-    navigate({ to: '/' });
-  }, [navigate]);
-
-  return null;
-}
