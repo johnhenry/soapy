@@ -13,12 +13,12 @@ import { buildApp } from '../../src/app.js';
  */
 describe('Integration: Advanced Streaming Features', () => {
   let app: FastifyInstance;
-  const baseUrl = 'http://localhost:3018';
+  const baseUrl = 'http://localhost:3019';
   const conversationId = 'test-advanced-streaming';
 
   beforeAll(async () => {
     app = await buildApp();
-    await app.listen({ port: 3018, host: 'localhost' });
+    await app.listen({ port: 3019, host: 'localhost' });
   });
 
   afterAll(async () => {

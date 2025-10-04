@@ -62,12 +62,7 @@ export class OpenAIProvider implements AIProvider {
         },
       };
     } catch (error) {
-      console.error('OpenAI chat completion failed:', error);
-      return {
-        content: '',
-        model,
-        finishReason: 'error',
-      };
+      throw error;
     }
   }
 
@@ -97,8 +92,7 @@ export class OpenAIProvider implements AIProvider {
         };
       }
     } catch (error) {
-      console.error('OpenAI chat stream failed:', error);
-      yield { delta: '', done: true, finishReason: 'error' };
+      throw error;
     }
   }
 

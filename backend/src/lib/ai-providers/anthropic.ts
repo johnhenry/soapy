@@ -63,12 +63,7 @@ export class AnthropicProvider implements AIProvider {
         },
       };
     } catch (error) {
-      console.error('Anthropic chat completion failed:', error);
-      return {
-        content: '',
-        model,
-        finishReason: 'error',
-      };
+      throw error;
     }
   }
 
@@ -102,8 +97,7 @@ export class AnthropicProvider implements AIProvider {
         }
       }
     } catch (error) {
-      console.error('Anthropic chat stream failed:', error);
-      yield { delta: '', done: true, finishReason: 'error' };
+      throw error;
     }
   }
 
