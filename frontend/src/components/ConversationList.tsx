@@ -1,7 +1,18 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useApi } from '../context/ApiContext';
 import { ApiClient } from '../services/ApiClient';
-import './ConversationList.css';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ConversationListProps {
   selectedId: string | null;
@@ -92,61 +103,73 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
   };
 
   return (
-    <div className="conversation-list">
-      <div className="conversation-list-header">
-        <button className="new-conversation-btn" onClick={handleNewConversation}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path fillRule="evenodd" d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z" clipRule="evenodd" />
-          </svg>
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b">
+        <Button 
+          className="w-full" 
+          onClick={handleNewConversation}
+        >
+          <Plus className="h-4 w-4" />
           New Conversation
-        </button>
+        </Button>
       </div>
-      <div className="conversation-items">
-        {loading && <div className="conversation-list-message">Loading...</div>}
-        {error && <div className="conversation-list-error">{error}</div>}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        {loading && <div className="text-sm text-muted-foreground text-center p-4">Loading...</div>}
+        {error && <div className="text-sm text-destructive text-center p-4">{error}</div>}
         {!loading && !error && conversations.length === 0 && (
-          <div className="conversation-list-empty">
+          <div className="text-sm text-muted-foreground text-center p-4">
             No conversations yet. Click "New Conversation" to start.
           </div>
         )}
         {conversations.map((conv) => (
-          <div key={conv.id} className="conversation-item-wrapper">
-            <button
-              className={`conversation-item ${selectedId === conv.id ? 'selected' : ''}`}
+          <div key={conv.id} className="flex items-stretch gap-1">
+            <Button
+              variant={selectedId === conv.id ? "secondary" : "ghost"}
+              className={cn(
+                "flex-1 justify-start h-auto py-2 px-3",
+                selectedId === conv.id && "bg-secondary"
+              )}
               onClick={() => onSelect(conv.id)}
             >
-              <div className="conversation-item-title">{conv.title}</div>
-              <div className="conversation-item-date">
-                {new Date(conv.updatedAt).toLocaleDateString()}
+              <div className="flex flex-col items-start w-full">
+                <div className="font-medium text-sm truncate w-full text-left">{conv.title}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(conv.updatedAt).toLocaleDateString()}
+                </div>
               </div>
-            </button>
-            <button
-              className="delete-conversation-btn"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteClick(conv.id, conv.title);
               }}
               title="Delete conversation"
             >
-              🗑️
-            </button>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         ))}
       </div>
 
-      {deleteConfirm && (
-        <div className="delete-modal-overlay" onClick={handleCancelDelete}>
-          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete Conversation?</h3>
-            <p>Are you sure you want to delete "{deleteConfirm.title}"?</p>
-            <p className="delete-warning">This action cannot be undone.</p>
-            <div className="delete-modal-actions">
-              <button onClick={handleCancelDelete} className="btn-cancel">Cancel</button>
-              <button onClick={handleConfirmDelete} className="btn-delete">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Conversation?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteConfirm?.title}"?
+              <br />
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
