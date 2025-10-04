@@ -30,8 +30,7 @@ export class OpenAICompatibleProvider implements AIProvider {
       const response = await this.client.models.list();
       return response.data.map((model: any) => model.id);
     } catch (error) {
-      console.error(`Failed to list models for ${this.name}:`, error);
-      return [];
+      throw error;
     }
   }
 
@@ -72,12 +71,7 @@ export class OpenAICompatibleProvider implements AIProvider {
         },
       };
     } catch (error) {
-      console.error(`Chat completion failed for ${this.name}:`, error);
-      return {
-        content: '',
-        model,
-        finishReason: 'error',
-      };
+      throw error;
     }
   }
 
@@ -107,8 +101,7 @@ export class OpenAICompatibleProvider implements AIProvider {
         };
       }
     } catch (error) {
-      console.error(`Chat stream failed for ${this.name}:`, error);
-      yield { delta: '', done: true, finishReason: 'error' };
+      throw error;
     }
   }
 

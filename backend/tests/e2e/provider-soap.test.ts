@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { config } from 'dotenv';
 import { buildApp } from '../../src/app.js';
+import { initializeProviders } from '../../src/lib/ai-providers/index.js';
+
+// Load environment variables before running tests
+config();
 
 /**
  * Integration Test: Scenario 1 - SOAP Message Submission
- * 
+ *
  * Tests the complete flow of submitting a message via SOAP,
  * storing it in Git, and retrieving a commit hash.
- * 
+ *
  * This is a stub test that demonstrates the TDD workflow.
  * Implementation will be added when git-storage library is ready.
  */
@@ -16,6 +21,7 @@ describe('Integration: SOAP Message Submission', () => {
   const baseUrl = 'http://localhost:3011';
 
   beforeAll(async () => {
+    initializeProviders();
     app = await buildApp();
     await app.listen({ port: 3011, host: 'localhost' });
   });
