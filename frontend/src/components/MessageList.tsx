@@ -123,7 +123,7 @@ export function MessageList({ conversationId, messages, items, streaming, onBran
               <div className="flex items-center gap-1 shrink-0">
                 {branchesBySequence[item.sequenceNumber] && branchesBySequence[item.sequenceNumber].length > 0 && onBranchSwitch && (
                   <div className="flex items-center gap-1">
-                    <GitBranch className="h-3 w-3 opacity-70" title={`${branchesBySequence[item.sequenceNumber].length} branch(es) diverge from here`} />
+                    <GitBranch className="h-3 w-3 opacity-70" />
                     <select
                       className={cn(
                         "text-xs px-2 py-1 rounded border cursor-pointer max-w-[150px] transition-colors",
