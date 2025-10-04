@@ -10,13 +10,6 @@ import { ToolCallView } from './ToolCallView';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { X } from 'lucide-react';
 import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
 
@@ -24,19 +17,19 @@ interface ConversationViewProps {
   appsection: string;
   namespace: string;
   conversationId: string;
+  branchId?: string;
   onConversationCreated?: () => void;
 }
 
-export function ConversationView({ appsection, namespace, conversationId, onConversationCreated }: ConversationViewProps) {
+export function ConversationView({ appsection, namespace, conversationId, branchId, onConversationCreated }: ConversationViewProps) {
   const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { branchId?: string };
   const { config } = useApi();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  // Use branchId from URL if present, otherwise default to 'main'
-  const currentBranch = params.branchId || 'main';
+  // Use branchId from prop, otherwise default to 'main'
+  const currentBranch = branchId || 'main';
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
   
   // Create namespaced conversation ID for API calls
@@ -57,10 +50,12 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
   const [client] = useState(() => new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.directResponse, config.streaming));
 
   useEffect(() => {
-    loadItems();
+    if (!conversationId) return;
+    const branch = branchId || 'main';
+    loadItems(branch);
     loadBranches();
     loadProviders();
-  }, [conversationId, currentBranch]);
+  }, [conversationId, branchId]);
 
   const loadProviders = async () => {
     try {
@@ -93,11 +88,11 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
     }
   };
 
-  const loadItems = async () => {
+  const loadItems = async (branch: string) => {
     try {
       setLoading(true);
       setError(null);
-      const conversationItems = await client.getConversationItems(namespacedId, currentBranch !== 'main' ? currentBranch : undefined);
+      const conversationItems = await client.getConversationItems(namespacedId, branch !== 'main' ? branch : undefined);
       setItems(conversationItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation');
@@ -238,10 +233,7 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
       await loadBranches();
 
       // Switch to the new branch via URL navigation
-      navigate({
-        to: '/user/$conversationId/branch/$branchId',
-        params: { conversationId: namespacedId, branchId: branchName }
-      });
+      navigate({ to: `/user/${namespacedId}/branch/${branchName}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
     }
@@ -257,7 +249,7 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
       await client.deleteBranch(namespacedId, currentBranch);
 
       // Switch to main via URL navigation
-      navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
+      navigate({ to: `/user/${namespacedId}` });
 
       // Reload branches
       await loadBranches();
@@ -272,29 +264,24 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="branch-select" className="text-sm">Branch:</Label>
-            <Select 
-              value={currentBranch} 
-              onValueChange={(branch) => {
+            <select
+              id="branch-select"
+              value={currentBranch}
+              onChange={(e) => {
+                const branch = e.target.value;
                 if (branch === 'main') {
-                  navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
+                  navigate({ to: `/user/${namespacedId}` });
                 } else {
-                  navigate({
-                    to: '/user/$conversationId/branch/$branchId',
-                    params: { conversationId: namespacedId, branchId: branch }
-                  });
+                  navigate({ to: `/user/${namespacedId}/branch/${branch}` });
                 }
               }}
+              className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger id="branch-select" className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="main">main</SelectItem>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.name} value={branch.name}>{branch.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="main">main</option>
+              {branches.map((branch) => (
+                <option key={branch.name} value={branch.name}>{branch.name}</option>
+              ))}
+            </select>
             {currentBranch !== 'main' && (
               <Button
                 variant="ghost"
@@ -329,48 +316,42 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
           currentBranch={currentBranch}
           onBranchSwitch={(branch) => {
             if (branch === 'main') {
-              navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
+              navigate({ to: `/user/${namespacedId}` });
             } else {
-              navigate({
-                to: '/user/$conversationId/branch/$branchId',
-                params: { conversationId: namespacedId, branchId: branch }
-              });
+              navigate({ to: `/user/${namespacedId}/branch/${branch}` });
             }
           }}
         />
         <div className="border-t p-3 bg-muted/50 flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="provider-select" className="text-sm">Provider:</Label>
-            <Select 
-              value={selectedProvider} 
-              onValueChange={async (value) => {
-                const newProvider = value as AIProvider;
+            <select
+              id="provider-select"
+              value={selectedProvider}
+              onChange={async (e) => {
+                const newProvider = e.target.value as AIProvider;
                 setSelectedProvider(newProvider);
                 await loadModels(newProvider);
               }}
+              className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger id="provider-select" className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProviders.map((provider) => (
-                  <SelectItem key={provider} value={provider}>{providerNames[provider]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {availableProviders.map((provider) => (
+                <option key={provider} value={provider}>{providerNames[provider]}</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="model-select" className="text-sm">Model:</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger id="model-select" className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableModels.map((model) => (
-                  <SelectItem key={model} value={model}>{model}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              id="model-select"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {availableModels.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
           </div>
         </div>
         <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />

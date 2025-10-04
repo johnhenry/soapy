@@ -22,7 +22,7 @@ export class RestClient {
   }
 
   async deleteConversation(id: string): Promise<void> {
-    await this.fetch(`/v1/chat/${encodeURIComponent(id)}`, {
+    await this.fetch(`/v1/chat/${id}`, {
       method: 'DELETE',
     });
   }
@@ -51,20 +51,20 @@ export class RestClient {
   }
 
   async getConversation(id: string, format: OutputFormat = 'openai'): Promise<Conversation> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}?format=${format}`);
+    const response = await this.fetch(`/v1/chat/${id}?format=${format}`);
     return response.json();
   }
 
   async getMessages(id: string, format: OutputFormat = 'openai', branch?: string): Promise<Message[]> {
-    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}?format=${format}${branchParam}`);
+    const branchParam = branch ? `&branch=${branch}` : '';
+    const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}`);
     const data = await response.json();
     return data.messages || [];
   }
 
   async getConversationItems(id: string, format: OutputFormat = 'openai', branch?: string): Promise<ConversationItem[]> {
-    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}?format=${format}${branchParam}&includeTools=true`);
+    const branchParam = branch ? `&branch=${branch}` : '';
+    const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}&includeTools=true`);
     const data = await response.json();
     return data.items || [];
   }
@@ -104,7 +104,7 @@ export class RestClient {
       ) : undefined;
 
       // Post the user message with attachments and provider/model for direct mode
-      const userResponse = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/messages`, {
+      const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
         method: 'POST',
         body: JSON.stringify({ role, content, branch, attachments, provider, model }),
       });
@@ -118,7 +118,7 @@ export class RestClient {
 
       // Otherwise, for hybrid mode, trigger AI completion separately
       if (role === 'user') {
-        await this.fetch(`/v1/chat/${encodeURIComponent(id)}/completion`, {
+        await this.fetch(`/v1/chat/${id}/completion`, {
           method: 'POST',
           body: JSON.stringify({ provider, model, branch }),
         });
@@ -138,7 +138,7 @@ export class RestClient {
     provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
-    const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/messages/stream`, {
+    const response = await fetch(`${this.baseUrl}/v1/chat/${id}/messages/stream`, {
       method: 'POST',
       headers: {
         'X-API-Key': this.apiKey,
@@ -189,7 +189,7 @@ export class RestClient {
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // For hybrid mode with streaming: message was already submitted, now stream the completion
     try {
-      const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/completion/stream`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/${id}/completion/stream`, {
         method: 'POST',
         headers: {
           'X-API-Key': this.apiKey,
@@ -249,7 +249,7 @@ export class RestClient {
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // Trigger AI completion
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/completion`, {
+    const response = await this.fetch(`/v1/chat/${id}/completion`, {
       method: 'POST',
       body: JSON.stringify({ branch, provider, model }),
     });
@@ -270,7 +270,7 @@ export class RestClient {
   }
 
   async createBranch(id: string, branchName: string, fromMessage: number): Promise<Branch> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/branch`, {
+    const response = await this.fetch(`/v1/chat/${id}/branch`, {
       method: 'POST',
       body: JSON.stringify({ branchName, fromMessage }),
     });
@@ -278,19 +278,19 @@ export class RestClient {
   }
 
   async getBranches(id: string): Promise<Branch[]> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/branches`);
+    const response = await this.fetch(`/v1/chat/${id}/branches`);
     const data = await response.json();
     return data.branches || [];
   }
 
   async deleteBranch(id: string, branchName: string): Promise<void> {
-    await this.fetch(`/v1/chat/${encodeURIComponent(id)}/branch/${encodeURIComponent(branchName)}`, {
+    await this.fetch(`/v1/chat/${id}/branch/${branchName}`, {
       method: 'DELETE',
     });
   }
 
   async submitToolCall(id: string, toolName: string, parameters: Record<string, unknown>): Promise<{ sequenceNumber: number; commitHash: string }> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/tools/call`, {
+    const response = await this.fetch(`/v1/chat/${id}/tools/call`, {
       method: 'POST',
       body: JSON.stringify({ toolName, parameters }),
     });
@@ -298,7 +298,7 @@ export class RestClient {
   }
 
   async submitToolResult(id: string, toolCallRef: number, result: Record<string, unknown>, status: 'success' | 'failure'): Promise<{ sequenceNumber: number; commitHash: string }> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/tools/result`, {
+    const response = await this.fetch(`/v1/chat/${id}/tools/result`, {
       method: 'POST',
       body: JSON.stringify({ toolCallRef, result, status }),
     });
@@ -309,7 +309,7 @@ export class RestClient {
     const buffer = await file.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/files`, {
+    const response = await this.fetch(`/v1/chat/${id}/files`, {
       method: 'POST',
       body: JSON.stringify({
         filename: file.name,
@@ -323,13 +323,13 @@ export class RestClient {
   }
 
   async listFiles(id: string): Promise<FileAttachment[]> {
-    const response = await this.fetch(`/v1/chat/${encodeURIComponent(id)}/files`);
+    const response = await this.fetch(`/v1/chat/${id}/files`);
     const data = await response.json();
     return data.files || [];
   }
 
   async downloadFile(id: string, filename: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/files/${encodeURIComponent(filename)}`, {
+    const response = await fetch(`${this.baseUrl}/v1/chat/${id}/files/${filename}`, {
       headers: { 'X-API-Key': this.apiKey },
     });
 
@@ -341,7 +341,7 @@ export class RestClient {
   }
 
   streamMessages(id: string, onMessage: (data: unknown) => void, onError: (error: Error) => void): () => void {
-    const eventSource = new EventSource(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/stream`);
+    const eventSource = new EventSource(`${this.baseUrl}/v1/chat/${id}/stream`);
 
     eventSource.onmessage = (event) => {
       try {

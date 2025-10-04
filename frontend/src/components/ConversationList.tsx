@@ -68,7 +68,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
     const newId = `${Date.now()}`;
     // Navigate to the new conversation using full namespaced ID
     const fullId = `default/${newId}`;
-    navigate({ to: '/user/$conversationId', params: { conversationId: fullId } });
+    navigate({ to: `/user/${fullId}` });
     // Reload conversations after a brief delay to allow backend to create it
     setTimeout(() => {
       loadConversations();
@@ -132,7 +132,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
                 "flex-1 justify-start h-auto py-2 px-3",
                 selectedId === conv.id && "bg-secondary"
               )}
-              onClick={() => navigate({ to: '/user/$conversationId', params: { conversationId: conv.id } })}
+              onClick={() => navigate({ to: `/user/${conv.id}` })}
             >
               <div className="flex flex-col items-start w-full">
                 <div className="font-medium text-sm truncate w-full text-left">{conv.title}</div>

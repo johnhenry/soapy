@@ -32,9 +32,55 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // DELETE /v1/chat/:id - Delete conversation
-  fastify.delete('/v1/chat/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // DELETE /v1/chat/:namespace/:conversationId/branch/:branchName - Delete branch
+  fastify.delete('/v1/chat/:namespace/:conversationId/branch/:branchName', async (request, reply) => {
+    const { namespace, conversationId, branchName } = request.params as {
+      namespace: string;
+      conversationId: string;
+      branchName: string;
+    };
+    const id = `${namespace}/${conversationId}`;
+
+    try {
+      await deleteBranch(id, branchName);
+      reply.code(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Cannot delete main branch') {
+        reply.code(400).send({ error: error.message });
+      } else {
+        throw error;
+      }
+    }
+  });
+
+  // GET /v1/chat/:namespace/:conversationId/branches - List branches
+  fastify.get('/v1/chat/:namespace/:conversationId/branches', async (request, reply) => {
+    const { namespace, conversationId } = request.params as {
+      namespace: string;
+      conversationId: string;
+    };
+    const id = `${namespace}/${conversationId}`;
+
+    const branches = await getBranches(id);
+
+    reply.send({
+      conversationId: id,
+      branches: branches.map((b) => ({
+        name: b.name,
+        sourceMessageNumber: b.sourceMessageNumber,
+        createdAt: b.createdAt.toISOString(),
+        messageCount: b.messageCount,
+      })),
+    });
+  });
+
+  // DELETE /v1/chat/:namespace/:conversationId - Delete conversation
+  fastify.delete('/v1/chat/:namespace/:conversationId', async (request, reply) => {
+    const { namespace, conversationId } = request.params as {
+      namespace: string;
+      conversationId: string;
+    };
+    const id = `${namespace}/${conversationId}`;
 
     if (await gitStorage.conversationExists(id)) {
       await gitStorage.deleteConversation(id);
@@ -990,39 +1036,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       } else {
         fastify.log.error(error, 'Unknown branch creation error');
         reply.code(500).send({ error: 'Failed to create branch' });
-      }
-    }
-  });
-
-  // GET /v1/chat/:id/branches - List branches
-  fastify.get('/v1/chat/:id/branches', async (request, reply) => {
-    const { id } = request.params as { id: string };
-
-    const branches = await getBranches(id);
-
-    reply.send({
-      conversationId: id,
-      branches: branches.map((b) => ({
-        name: b.name,
-        sourceMessageNumber: b.sourceMessageNumber,
-        createdAt: b.createdAt.toISOString(),
-        messageCount: b.messageCount,
-      })),
-    });
-  });
-
-  // DELETE /v1/chat/:id/branch/:branchName - Delete branch
-  fastify.delete('/v1/chat/:id/branch/:branchName', async (request, reply) => {
-    const { id, branchName } = request.params as { id: string; branchName: string };
-
-    try {
-      await deleteBranch(id, branchName);
-      reply.code(204).send();
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Cannot delete main branch') {
-        reply.code(400).send({ error: error.message });
-      } else {
-        throw error;
       }
     }
   });
