@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ConversationList } from '../components/ConversationList';
 import { useRef } from 'react';
 
-export const Route = createFileRoute('/$namespace')({
+export const Route = createFileRoute('/user/$namespace')({
   component: NamespaceComponent,
 });
 

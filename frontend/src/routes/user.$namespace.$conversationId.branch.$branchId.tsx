@@ -3,7 +3,7 @@ import { ConversationList } from '../components/ConversationList';
 import { ConversationView } from '../components/ConversationView';
 import { useRef } from 'react';
 
-export const Route = createFileRoute('/$conversationId/$branchId')({
+export const Route = createFileRoute('/user/$namespace/$conversationId/branch/$branchId')({
   component: BranchComponent,
 });
 
@@ -23,6 +23,7 @@ function BranchComponent() {
 
       <main className="main-content">
         <ConversationView
+          appsection="user"
           namespace={namespace}
           conversationId={conversationId}
           onConversationCreated={() => conversationListRef.current?.refresh()}

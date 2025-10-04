@@ -21,12 +21,13 @@ import { X } from 'lucide-react';
 import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
 
 interface ConversationViewProps {
+  appsection: string;
   namespace: string;
   conversationId: string;
   onConversationCreated?: () => void;
 }
 
-export function ConversationView({ namespace, conversationId, onConversationCreated }: ConversationViewProps) {
+export function ConversationView({ appsection, namespace, conversationId, onConversationCreated }: ConversationViewProps) {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { branchId?: string };
   const { config } = useApi();
@@ -238,7 +239,7 @@ export function ConversationView({ namespace, conversationId, onConversationCrea
 
       // Switch to the new branch via URL navigation
       navigate({ 
-        to: '/$namespace/$conversationId/$branchId', 
+        to: '/user/$namespace/$conversationId/branch/$branchId', 
         params: { namespace, conversationId, branchId: branchName } 
       });
     } catch (err) {
@@ -256,7 +257,7 @@ export function ConversationView({ namespace, conversationId, onConversationCrea
       await client.deleteBranch(namespacedId, currentBranch);
 
       // Switch to main via URL navigation
-      navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
+      navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
 
       // Reload branches
       await loadBranches();
@@ -275,10 +276,10 @@ export function ConversationView({ namespace, conversationId, onConversationCrea
               value={currentBranch} 
               onValueChange={(branch) => {
                 if (branch === 'main') {
-                  navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
+                  navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
                 } else {
                   navigate({ 
-                    to: '/$namespace/$conversationId/$branchId', 
+                    to: '/user/$namespace/$conversationId/branch/$branchId', 
                     params: { namespace, conversationId, branchId: branch } 
                   });
                 }
@@ -328,10 +329,10 @@ export function ConversationView({ namespace, conversationId, onConversationCrea
           currentBranch={currentBranch}
           onBranchSwitch={(branch) => {
             if (branch === 'main') {
-              navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
+              navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
             } else {
               navigate({ 
-                to: '/$namespace/$conversationId/$branchId', 
+                to: '/user/$namespace/$conversationId/branch/$branchId', 
                 params: { namespace, conversationId, branchId: branch } 
               });
             }
