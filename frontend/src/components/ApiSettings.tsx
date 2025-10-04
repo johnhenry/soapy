@@ -5,13 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -140,15 +133,15 @@ export function ApiSettings({ onClose }: ApiSettingsProps) {
 
           <div className="space-y-2">
             <Label htmlFor="request-protocol">Request Protocol</Label>
-            <Select value={requestProtocol} onValueChange={(value) => setRequestProtocolLocal(value as 'rest' | 'soap')}>
-              <SelectTrigger id="request-protocol">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rest">REST</SelectItem>
-                <SelectItem value="soap">SOAP</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              id="request-protocol"
+              value={requestProtocol}
+              onChange={(e) => setRequestProtocolLocal(e.target.value as 'rest' | 'soap')}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="rest">REST</option>
+              <option value="soap">SOAP</option>
+            </select>
             <p className="text-sm text-muted-foreground">Protocol for submitting messages and operations</p>
           </div>
 
@@ -171,15 +164,15 @@ export function ApiSettings({ onClose }: ApiSettingsProps) {
           {!directResponseLocal && (
             <div className="space-y-2">
               <Label htmlFor="response-protocol">Response Protocol</Label>
-              <Select value={responseProtocol} onValueChange={(value) => setResponseProtocolLocal(value as 'rest' | 'soap')}>
-                <SelectTrigger id="response-protocol">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rest">REST</SelectItem>
-                  <SelectItem value="soap">SOAP</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                id="response-protocol"
+                value={responseProtocol}
+                onChange={(e) => setResponseProtocolLocal(e.target.value as 'rest' | 'soap')}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="rest">REST</option>
+                <option value="soap">SOAP</option>
+              </select>
               <p className="text-sm text-muted-foreground">Protocol for retrieving the response after ID is returned</p>
             </div>
           )}
