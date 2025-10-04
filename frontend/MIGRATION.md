@@ -1,6 +1,6 @@
 # shadcn/ui Migration Summary
 
-**Status**: ✅ 8/9 Components Migrated (89% Complete)  
+**Status**: ✅ 9/9 Components Migrated (100% Complete)  
 **Date**: December 2024  
 **Version**: shadcn/ui with Tailwind CSS 3.x
 
@@ -68,7 +68,7 @@ Custom CSS variables mapped to shadcn/ui tokens while preserving brand colors:
 /* ... */
 ```
 
-## Migrated Components (8/9)
+## Migrated Components (9/9) ✅ Complete
 
 ### 1. MessageInput ✅
 **Lines**: 108 → 119  
@@ -145,10 +145,19 @@ Custom CSS variables mapped to shadcn/ui tokens while preserving brand colors:
 - Download buttons
 - File size and hash display
 
-### 9. MessageList ⏳ Deferred
-**Lines**: 307 (not migrated)  
-**Reason**: Complex component with custom message rendering, branch visualization, and streaming indicators  
-**Status**: Works with existing CSS, can be migrated incrementally later
+### 9. MessageList ✅
+**Lines**: 307 → 489  
+**shadcn Components**: Card, Badge, Button, Input  
+**Icons**: GitBranch, User, Bot, FileText, Code, CheckCircle2, XCircle  
+**Features**:
+- Message rendering (user/assistant/system)
+- Branch visualization with inline selectors
+- Tool call/result display with status indicators
+- File attachments with download links
+- Streaming indicator with animated dots
+- Branch creation form
+- Commit hash badges
+- Provider/model display
 
 ## Benefits Achieved
 
@@ -178,18 +187,21 @@ dist/assets/index-DjoDrLNP.css   16.48 kB │ gzip:  3.40 kB
 dist/assets/index-Dk3zwUNN.js   184.32 kB │ gzip: 56.46 kB
 ```
 
-### After Migration (8/9 components)
+### After Migration (9/9 components) ✅
 ```
-dist/assets/index-DO8XkpWU.css   29.22 kB │ gzip:  6.37 kB
-dist/assets/index-DApzLx58.js   308.34 kB │ gzip: 97.66 kB
+dist/assets/index-CCmBRMz7.css   25.17 kB │ gzip:  5.61 kB
+dist/assets/index-DH7j5TpW.js   315.04 kB │ gzip: 98.80 kB
 ```
 
-**Note**: Uncompressed CSS is larger due to Tailwind utility classes, but gzipped size increased only slightly (6.37 KB vs 3.40 KB). The JavaScript bundle includes Radix UI primitives and Lucide icons.
+**Final Results**:
+- CSS: 16.48 KB → 25.17 KB uncompressed, but **3.40 KB → 5.61 kB gzipped** (65% increase due to Tailwind utilities)
+- JS: 184.32 KB → 315.04 KB uncompressed, 56.46 KB → 98.80 kB gzipped (75% increase due to Radix UI primitives and Lucide icons)
+- **Total gzipped**: 59.86 KB → 104.41 kB (74% increase, acceptable tradeoff for improved DX and accessibility)
 
 ## Future Work
 
 ### Remaining Tasks
-- [ ] Migrate MessageList component (complex, 307 lines)
+- [x] ~~Migrate MessageList component (complex, 307 lines)~~ ✅ Complete
 - [ ] Add visual regression tests (Chromatic, Percy, or similar)
 - [ ] Document component usage patterns
 - [ ] Create custom component variants as needed
