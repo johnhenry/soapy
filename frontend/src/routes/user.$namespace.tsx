@@ -1,9 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ConversationList } from '../components/ConversationList';
 import { useRef } from 'react';
 
 export const Route = createFileRoute('/user/$namespace')({
   component: NamespaceComponent,
+  beforeLoad: ({ params }) => {
+    // If namespace contains a slash, it's actually namespace/conversationId
+    // Redirect to the conversation route
+    if (params.namespace.includes('/')) {
+      const [namespace, conversationId] = params.namespace.split('/', 2);
+      throw redirect({
+        to: '/user/$namespace/$conversationId',
+        params: { namespace, conversationId },
+      });
+    }
+  },
 });
 
 function NamespaceComponent() {
