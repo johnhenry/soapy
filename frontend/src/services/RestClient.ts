@@ -138,7 +138,7 @@ export class RestClient {
     provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
-    const response = await fetch(`${this.baseUrl}/v1/chat/${id}/messages/stream`, {
+    const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/messages/stream`, {
       method: 'POST',
       headers: {
         'X-API-Key': this.apiKey,
@@ -189,7 +189,7 @@ export class RestClient {
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // For hybrid mode with streaming: message was already submitted, now stream the completion
     try {
-      const response = await fetch(`${this.baseUrl}/v1/chat/${id}/completion/stream`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/completion/stream`, {
         method: 'POST',
         headers: {
           'X-API-Key': this.apiKey,
@@ -329,7 +329,7 @@ export class RestClient {
   }
 
   async downloadFile(id: string, filename: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/v1/chat/${id}/files/${filename}`, {
+    const response = await fetch(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/files/${encodeURIComponent(filename)}`, {
       headers: { 'X-API-Key': this.apiKey },
     });
 
@@ -341,7 +341,7 @@ export class RestClient {
   }
 
   streamMessages(id: string, onMessage: (data: unknown) => void, onError: (error: Error) => void): () => void {
-    const eventSource = new EventSource(`${this.baseUrl}/v1/chat/${id}/stream`);
+    const eventSource = new EventSource(`${this.baseUrl}/v1/chat/${encodeURIComponent(id)}/stream`);
 
     eventSource.onmessage = (event) => {
       try {
