@@ -34,55 +34,67 @@ This is the first implementation of the Soapy project, built following the GitHu
 - ✅ Vitest testing framework with 100% test pass rate
 - ✅ Modular app architecture with reusable `buildApp()` function
 
-#### Data Models (6 entities)
+#### Data Models (5 entities)
 - ✅ Conversation model with validation
 - ✅ Message model with role-based typing
 - ✅ Branch model for Git branching support
 - ✅ ToolCall model for agent tool execution
 - ✅ ToolResult model with status tracking
-- ✅ Branding model with HTTPS URL and hex color validation
 
 #### SOAP API
 - ✅ WSDL contract serving at `/soap?wsdl`
 - ✅ XML content type support
-- ✅ 8 SOAP operations defined:
+- ✅ 16 SOAP operations defined:
   - CommitMessage
   - BranchConversation
   - GetConversation
-  - GetBranding
   - CommitToolCall
   - CommitToolResult
   - CommitFile (for file uploads)
   - GetFile (for file downloads)
-- ✅ Stub implementations returning proper SOAP responses for 6 core operations
+  - GetCompletion
+  - ListProviders
+  - GetProviderModels
+  - ListConversations
+  - DeleteConversation
+  - ListBranches
+  - DeleteBranch
+  - ListFiles
 
 #### REST API
-- ✅ 10 REST endpoints implemented:
+- ✅ 17 REST endpoints implemented:
   - `POST /v1/chat/:id/messages` - Submit message
   - `GET /v1/chat/:id?format={openai|anthropic|soap}` - Get conversation
-  - `GET /v1/chat/:id/stream` - Stream conversation (SSE)
   - `POST /v1/chat/:id/branch` - Create branch
-  - `GET /v1/chat/:id/branding` - Get branding
+  - `DELETE /v1/chat/:id/branch/:branchName` - Delete branch
+  - `GET /v1/chat/:id/branches` - List branches
+  - `DELETE /v1/chat/:id` - Delete conversation
+  - `GET /v1/conversations` - List all conversations
   - `POST /v1/chat/:id/tools/call` - Submit tool call
   - `POST /v1/chat/:id/tools/result` - Submit tool result
   - `POST /v1/chat/:id/files` - Upload file
   - `GET /v1/chat/:id/files` - List files
   - `GET /v1/chat/:id/files/:filename` - Download file
+  - `GET /v1/chat/:id/completion/stream` - Stream completion (SSE)
+  - `POST /v1/chat/:id/messages/stream` - Stream messages (SSE)
+  - `GET /v1/providers` - List AI providers
+  - `GET /v1/providers/:provider/models` - List models
+  - `POST /v1/chat/:id/completion` - Direct completion
 
 #### Testing
 - ✅ 33 contract tests (100% passing):
-  - 18 branding validation tests
   - 7 SOAP WSDL tests
   - 8 REST API tests
-- ✅ 22 integration tests (100% passing):
+  - 18 additional validation tests
+- ⚠️ 58 integration tests (48 passing, 10 failing):
   - Scenario 1: SOAP Message Submission (3 tests)
   - Scenario 2: REST Retrieval (4 tests)
   - Scenario 3: Streaming (4 tests)
-  - Scenario 4: Branching (4 tests)
+  - Scenario 4: Branching (4 tests, 1 failing)
   - Scenario 5: Tools (3 tests)
-  - Scenario 6: Branding (2 tests)
-  - Scenario 7: Error Handling (2 tests)
-- ✅ **Total: 55/55 tests passing (100%)**
+  - Scenario 7: Error Handling (2 tests, 2 failing)
+  - Additional tests (38 tests, 7 failing)
+- ⚠️ **Total: 48/58 tests passing (82.8%)**
 
 #### CLI Tools (Constitutional Principle II)
 - ✅ `soapy-health` - Health check CLI tool
@@ -101,7 +113,6 @@ This is the first implementation of the Soapy project, built following the GitHu
   - Get WSDL
   - Get Conversation (OpenAI format)
   - Post Message
-  - Get Branding
 - ✅ Response display area with syntax highlighting
 
 #### Documentation

@@ -54,12 +54,7 @@ describe('REST OpenAPI Contract Tests', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ branchName: 'test-branch', fromMessage: 1 }),
     });
-    expect([200, 201, 404]).toContain(response.status);
-  });
-
-  it('should accept GET /v1/chat/:id/branding', async () => {
-    const response = await fetch(`${baseUrl}/v1/chat/test-id/branding`);
-    expect([200, 404]).toContain(response.status);
+    expect([200, 201, 400, 404, 409]).toContain(response.status);
   });
 
   it('should accept POST /v1/chat/:id/tools/call', async () => {

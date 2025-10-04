@@ -55,16 +55,6 @@ export interface SoapService {
     };
   }>;
 
-  GetBranding(args: { conversationId: string }): Promise<{
-    branding: {
-      logoUrl: string;
-      primaryColor: string;
-      secondaryColor?: string;
-      accentColor?: string;
-      footerText?: string;
-    };
-  }>;
-
   CommitToolCall(args: {
     conversationId: string;
     toolName: string;
@@ -155,15 +145,6 @@ export const soapService: SoapService = {
         content: 'This is a completion response from the SOAP GetCompletion endpoint.',
         timestamp: new Date().toISOString(),
         commitHash: 'completion-abc123',
-      },
-    };
-  },
-
-  async GetBranding(_args) {
-    return {
-      branding: {
-        logoUrl: 'https://example.com/logo.png',
-        primaryColor: '#FF5733',
       },
     };
   },

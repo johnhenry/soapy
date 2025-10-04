@@ -11,6 +11,9 @@ describe('Integration: Git-Backed Conversation Branching', () => {
   let app: FastifyInstance;
   const baseUrl = 'http://localhost:3014';
   const conversationId = 'test-branching';
+  
+  // Generate unique branch names using timestamp to avoid conflicts
+  const timestamp = Date.now();
 
   beforeAll(async () => {
     app = await buildApp();
@@ -26,7 +29,7 @@ describe('Integration: Git-Backed Conversation Branching', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        branchName: 'experiment-1',
+        branchName: `experiment-1-${timestamp}`,
         fromMessage: 5,
       }),
     });
@@ -43,7 +46,7 @@ describe('Integration: Git-Backed Conversation Branching', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        branchName: 'experiment-2',
+        branchName: `experiment-2-${timestamp}`,
         fromMessage: 3,
       }),
     });
@@ -57,7 +60,7 @@ describe('Integration: Git-Backed Conversation Branching', () => {
       body: JSON.stringify({
         role: 'user',
         content: 'Message on branch',
-        branch: 'experiment-2',
+        branch: `experiment-2-${timestamp}`,
       }),
     });
 

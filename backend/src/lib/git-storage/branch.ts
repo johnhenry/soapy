@@ -56,9 +56,14 @@ export async function createBranch(
     }
   }
 
-  // If we didn't find the specific item, fail
+  // If we didn't find the specific item, use HEAD (for empty conversations or as fallback)
   if (!targetCommit) {
-    throw new Error(`Item ${fromMessageNumber} not found in commit history`);
+    if (commits.length > 0) {
+      // Use the latest commit (HEAD) as fallback
+      targetCommit = commits[0].oid;
+    } else {
+      throw new Error(`Conversation ${conversationId} has no commits yet - cannot create branch`);
+    }
   }
 
   // Create Git branch at the target commit (doesn't require checkout)

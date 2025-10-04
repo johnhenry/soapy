@@ -6,18 +6,18 @@
 
 ## Tech Stack
 
-**Language**: Node.js 24 with TypeScript 5.x
+**Language**: Node.js 20+ with TypeScript 5.x
 - **Module System**: ES modules (`import`/`export`) - `package.json` has `"type": "module"`
 - **TypeScript**: Strict mode enabled, all source files use `.ts` extension
 - **Modern JavaScript**: Top-level await, optional chaining, nullish coalescing, native fetch, private fields
 
-**Backend Framework**: Fastify v4.x
+**Backend Framework**: Fastify v5.x
 - Fast HTTP server (2-3x faster than Express)
 - Native JSON Schema validation
 - Plugins: `@fastify/sse` (Server-Sent Events), `@fastify/websocket`
 - Full TypeScript support
 
-**SOAP**: `strong-soap` v1.x
+**SOAP**: `strong-soap` v5.x
 - WSDL 1.1/2.0 support
 - WS-Security plugin available
 
@@ -91,16 +91,16 @@ frontend/
 
 ## Recent Changes
 
-1. **Added**: Node.js 24, Fastify, isomorphic-git, strong-soap, OpenAI/Anthropic SDKs
-2. **Created**: WSDL contract with 8 operations (added file upload/download), OpenAPI spec with 12 endpoints (added 3 file operations)
-3. **Designed**: 9 entities (Conversation, Message, Branch, ToolCall, ToolResult, Branding, FileAttachment, SOAPOperation, StreamSession)
+1. **Added**: Node.js 20+, Fastify v5, isomorphic-git, strong-soap v5, OpenAI/Anthropic SDKs
+2. **Created**: WSDL contract with 16 operations, OpenAPI spec with 17 endpoints
+3. **Designed**: 5 core entities (Conversation, Message, Branch, ToolCall, ToolResult)
 4. **File Attachments**: Complete file upload/download support via REST (multipart/form-data) and SOAP (Base64-encoded), stored in Git with SHA-256 hashing
+5. **Branding**: Removed from implementation (deferred to future release)
 
 ## Key Design Decisions (from research.md)
 
 - **CORS**: Configurable allow-list via `ALLOWED_ORIGINS` env var
 - **Streaming Timeout**: 300s default (configurable)
-- **Branding Validation**: JSON Schema with HTTPS URLs and hex colors
 - **Data Retention**: Configurable via `RETENTION_DAYS` (default: infinite)
 - **Performance Targets**: SOAP p95 <1500ms, REST p95 <800ms
 - **Concurrent Streams**: 10 per conversation (configurable)
