@@ -70,7 +70,8 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
       }
 
       if (!operationMatch) {
-        reply.code(400).type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+        // SOAP Faults should return 200 status with fault envelope per SOAP standards
+        reply.code(200).type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <soap:Fault>
@@ -89,6 +90,7 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
       const handler = soapHandlerRegistry.get(operation);
 
       if (!handler) {
+        // SOAP Faults should return 200 status with fault envelope per SOAP standards
         const response = `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
@@ -98,7 +100,7 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
     </soap:Fault>
   </soap:Body>
 </soap:Envelope>`;
-        reply.code(501).type('text/xml').send(response);
+        reply.code(200).type('text/xml').send(response);
         return;
       }
 
@@ -111,7 +113,8 @@ const soapPlugin: FastifyPluginAsync = async (fastify) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       fastify.log.error(error, 'SOAP processing error');
 
-      reply.code(500).type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+      // SOAP Faults should return 200 status with fault envelope per SOAP standards
+      reply.code(200).type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <soap:Fault>

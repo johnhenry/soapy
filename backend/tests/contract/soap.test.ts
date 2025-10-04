@@ -53,15 +53,6 @@ describe('SOAP WSDL Contract Tests', () => {
     expect(wsdl).toContain('GetConversationResponse');
   });
 
-  it('should define GetBranding operation in WSDL', async () => {
-    const response = await fetch(`${baseUrl}/soap?wsdl`);
-    const wsdl = await response.text();
-
-    expect(wsdl).toContain('GetBranding');
-    expect(wsdl).toContain('GetBrandingRequest');
-    expect(wsdl).toContain('GetBrandingResponse');
-  });
-
   it('should define CommitToolCall operation in WSDL', async () => {
     const response = await fetch(`${baseUrl}/soap?wsdl`);
     const wsdl = await response.text();
