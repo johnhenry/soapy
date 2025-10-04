@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useApi } from '../context/ApiContext';
 import { ApiClient } from '../services/ApiClient';
 import { MessageList } from './MessageList';
@@ -25,12 +26,15 @@ interface ConversationViewProps {
 }
 
 export function ConversationView({ conversationId, onConversationCreated }: ConversationViewProps) {
+  const navigate = useNavigate();
+  const params = useParams({ strict: false }) as { branchId?: string };
   const { config } = useApi();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState('main');
+  // Use branchId from URL if present, otherwise default to 'main'
+  const currentBranch = params.branchId || 'main';
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
@@ -228,11 +232,11 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       // Reload branches to update dropdown
       await loadBranches();
 
-      // Switch to the new branch
-      setCurrentBranch(branchName);
-
-      // Reload items on the new branch
-      await loadItems();
+      // Switch to the new branch via URL navigation
+      navigate({ 
+        to: '/$conversationId/$branchId', 
+        params: { conversationId, branchId: branchName } 
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
     }
@@ -247,8 +251,8 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
       setError(null);
       await client.deleteBranch(conversationId, currentBranch);
 
-      // Switch to main
-      setCurrentBranch('main');
+      // Switch to main via URL navigation
+      navigate({ to: '/$conversationId', params: { conversationId } });
 
       // Reload branches
       await loadBranches();
@@ -263,7 +267,19 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="branch-select" className="text-sm">Branch:</Label>
-            <Select value={currentBranch} onValueChange={setCurrentBranch}>
+            <Select 
+              value={currentBranch} 
+              onValueChange={(branch) => {
+                if (branch === 'main') {
+                  navigate({ to: '/$conversationId', params: { conversationId } });
+                } else {
+                  navigate({ 
+                    to: '/$conversationId/$branchId', 
+                    params: { conversationId, branchId: branch } 
+                  });
+                }
+              }}
+            >
               <SelectTrigger id="branch-select" className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
@@ -306,7 +322,16 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           onBranchFromMessage={handleBranchFromMessage}
           branches={branches}
           currentBranch={currentBranch}
-          onBranchSwitch={setCurrentBranch}
+          onBranchSwitch={(branch) => {
+            if (branch === 'main') {
+              navigate({ to: '/$conversationId', params: { conversationId } });
+            } else {
+              navigate({ 
+                to: '/$conversationId/$branchId', 
+                params: { conversationId, branchId: branch } 
+              });
+            }
+          }}
         />
         <div className="border-t p-3 bg-muted/50 flex items-center gap-4">
           <div className="flex items-center gap-2">
