@@ -163,14 +163,20 @@ export const CommitMessageHandler: SoapOperationHandler = async (request, contex
   }
 
   // Return response with AI message if generated
+  // Include AI response content for direct mode support
+  const aiResponseXml = aiResult && aiResponse ? `
+      <tns:aiResponse><![CDATA[${aiResponse}]]></tns:aiResponse>
+      <tns:aiSequenceNumber>${aiResult.sequenceNumber}</tns:aiSequenceNumber>
+      <tns:aiCommitHash>${aiResult.commitHash}</tns:aiCommitHash>` : '';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                xmlns:tns="http://soapy.example.com/wsdl/v1">
   <soap:Body>
     <tns:CommitMessageResponse>
-      <tns:commitHash>${aiResult?.commitHash || userResult.commitHash}</tns:commitHash>
-      <tns:sequenceNumber>${aiResult?.sequenceNumber || userResult.sequenceNumber}</tns:sequenceNumber>
-      <tns:timestamp>${(aiResult?.timestamp || userResult.timestamp).toISOString()}</tns:timestamp>
+      <tns:commitHash>${userResult.commitHash}</tns:commitHash>
+      <tns:sequenceNumber>${userResult.sequenceNumber}</tns:sequenceNumber>
+      <tns:timestamp>${userResult.timestamp.toISOString()}</tns:timestamp>${aiResponseXml}
     </tns:CommitMessageResponse>
   </soap:Body>
 </soap:Envelope>`;

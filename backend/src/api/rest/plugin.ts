@@ -98,6 +98,9 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     let result;
+    let aiResponse: string | undefined;
+    let aiResult: any;
+
     try {
       // Store user message (with branch context and attachments)
       result = await commitMessage(id, {
@@ -107,8 +110,83 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         attachments: body.attachments,
       }, body.branch);
 
-      // Note: AI response generation is now handled by POST /v1/chat/:id/completion
-      // This endpoint only stores messages
+      // If this is a user message, generate AI response for direct mode
+      if (body.role === 'user') {
+        try {
+          const provider = body.provider || 'openai';
+          const model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+
+          // Get conversation items for context
+          const items = await getConversationItems(id, body.branch);
+
+          // Format messages for AI (OpenAI vision format)
+          const messages = await Promise.all(
+            items
+              .filter(item => item.itemType === 'message')
+              .map(async (item) => {
+                const msg = item as any;
+
+                // If message has attachments (images), format as vision content
+                if (msg.attachments && msg.attachments.length > 0) {
+                  const { join } = await import('path');
+                  const fs = await import('fs/promises');
+                  const conversationDir = join(process.cwd(), 'conversations', id);
+
+                  const contentParts: any[] = [{ type: 'text', text: msg.content }];
+
+                  for (const attachment of msg.attachments) {
+                    // Only include images for vision
+                    if (attachment.contentType.startsWith('image/')) {
+                      const filePath = join(conversationDir, attachment.path);
+                      const buffer = await fs.readFile(filePath);
+                      const base64Data = buffer.toString('base64');
+
+                      contentParts.push({
+                        type: 'image_url',
+                        image_url: {
+                          url: `data:${attachment.contentType};base64,${base64Data}`
+                        }
+                      });
+                    }
+                  }
+
+                  return {
+                    role: msg.role,
+                    content: contentParts
+                  };
+                } else {
+                  return {
+                    role: msg.role,
+                    content: msg.content
+                  };
+                }
+              })
+          );
+
+          // Check if provider is available
+          if (!aiOrchestrator.hasProvider(provider as any)) {
+            throw new Error(`Provider ${provider} not available or not configured`);
+          }
+
+          // Call AI provider via orchestrator
+          const chatResult = await aiOrchestrator.chat(provider as any, messages as any, { model });
+          aiResponse = chatResult.content;
+          const usedModel = chatResult.model;
+
+          // Commit AI response
+          aiResult = await commitMessage(id, {
+            role: 'assistant',
+            content: aiResponse,
+            timestamp: new Date(),
+            aiProvider: provider,
+            model: usedModel,
+          }, body.branch);
+        } catch (error) {
+          // AI generation failed, but user message was stored
+          // Return user message result without AI response
+          fastify.log.error(error, 'AI provider error in direct mode');
+        }
+      }
     } finally {
       // Always return to main branch after message operations
       if (body.branch) {
@@ -121,12 +199,21 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    reply.code(201).send({
+    const response: any = {
       conversationId: id,
       sequenceNumber: result!.sequenceNumber,
       commitHash: result!.commitHash,
       timestamp: result!.timestamp.toISOString(),
-    });
+    };
+
+    // Include AI response if generated (direct mode)
+    if (aiResult && aiResponse) {
+      response.aiResponse = aiResponse;
+      response.aiSequenceNumber = aiResult.sequenceNumber;
+      response.aiCommitHash = aiResult.commitHash;
+    }
+
+    reply.code(201).send(response);
   });
 
   // POST /v1/chat/:id/completion - Get AI completion (non-streaming, supports tools)
@@ -453,6 +540,136 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
       reply.send(results);
     } catch (error) {
       reply.code(500).send({ error: 'AI completion failed' });
+    }
+  });
+
+  // POST /v1/chat/:id/completion/stream - Get AI completion with streaming
+  fastify.post('/v1/chat/:id/completion/stream', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      provider?: ProviderType;
+      model?: string;
+      branch?: string;
+    };
+
+    if (!(await gitStorage.conversationExists(id))) {
+      reply.code(404).send({ error: 'Conversation not found' });
+      return;
+    }
+
+    // Set up SSE with CORS headers
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', request.headers.origin || '*');
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    try {
+      const provider = body.provider || 'openai';
+      const model = body.model || (provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022');
+
+      // Get conversation items (messages + tool calls + tool results)
+      const items = await getConversationItems(id, body.branch);
+
+      if (items.length === 0) {
+        reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'No messages in conversation' })}\n\n`);
+        reply.raw.end();
+        return;
+      }
+
+      const conversationDir = join(process.env.CONVERSATIONS_DIR || './conversations', id);
+
+      // Helper function to read file attachments
+      async function readAttachment(filename: string): Promise<string | null> {
+        try {
+          const filePath = join(conversationDir, 'files', filename);
+          const buffer = await fs.promises.readFile(filePath);
+          return buffer.toString('base64');
+        } catch (error) {
+          return null;
+        }
+      }
+
+      let fullResponse = '';
+
+      // Format messages for AI with vision support
+      const formattedMessages: any[] = [];
+
+      for (const item of items) {
+        if (item.itemType === 'message') {
+          const message = item as any;
+
+          // If message has attachments (images), format as vision content
+          if (message.attachments && message.attachments.length > 0) {
+            const contentParts: any[] = [{ type: 'text', text: message.content }];
+
+            for (const attachment of message.attachments) {
+              if (attachment.contentType.startsWith('image/')) {
+                const base64Data = await readAttachment(attachment.filename);
+                if (base64Data) {
+                  contentParts.push({
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${attachment.contentType};base64,${base64Data}`
+                    }
+                  });
+                }
+              }
+            }
+
+            formattedMessages.push({
+              role: message.role,
+              content: contentParts
+            });
+          } else {
+            formattedMessages.push({
+              role: message.role,
+              content: message.content
+            });
+          }
+        }
+      }
+
+      // Stream AI response
+      if (!aiOrchestrator.hasProvider(provider as any)) {
+        reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'AI provider not available' })}\n\n`);
+        reply.raw.end();
+        return;
+      }
+
+      const stream = await aiOrchestrator.createChatCompletionStream(
+        provider as any,
+        { model, messages: formattedMessages }
+      );
+
+      for await (const chunk of stream) {
+        if (chunk.choices[0]?.delta?.content) {
+          const content = chunk.choices[0].delta.content;
+          fullResponse += content;
+          reply.raw.write(`data: ${JSON.stringify({ type: 'delta', content })}\n\n`);
+        }
+      }
+
+      // Store AI response
+      const aiResult = await commitMessage(id, {
+        role: 'assistant',
+        content: fullResponse,
+        timestamp: new Date(),
+        aiProvider: provider,
+        model,
+      }, body.branch);
+
+      // Send done event with metadata
+      reply.raw.write(`data: ${JSON.stringify({
+        type: 'done',
+        sequenceNumber: aiResult.sequenceNumber,
+        commitHash: aiResult.commitHash
+      })}\n\n`);
+
+      reply.raw.end();
+    } catch (error) {
+      reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'AI completion failed' })}\n\n`);
+      reply.raw.end();
     }
   });
 

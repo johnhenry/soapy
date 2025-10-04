@@ -31,6 +31,9 @@
             <xsd:element name="commitHash" type="xsd:string"/>
             <xsd:element name="sequenceNumber" type="xsd:int"/>
             <xsd:element name="timestamp" type="xsd:dateTime"/>
+            <xsd:element name="aiResponse" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="aiSequenceNumber" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="aiCommitHash" type="xsd:string" minOccurs="0"/>
           </xsd:sequence>
         </xsd:complexType>
       </xsd:element>

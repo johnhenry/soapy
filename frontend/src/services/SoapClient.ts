@@ -228,12 +228,45 @@ export class SoapClient {
     provider?: AIProvider,
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
-    // Pure SOAP direct response (non-streaming): submit message, backend returns AI response synchronously
-    await this.sendMessage(id, role, content, branch, provider, model);
+    // Pure SOAP direct response: submit message, backend returns AI response in same call
+    const branchElement = branch ? `<tns:branchName>${branch}</tns:branchName>` : '';
+    const providerElement = provider ? `<tns:aiProvider>${provider}</tns:aiProvider>` : '';
+    const modelElement = model ? `<tns:model>${model}</tns:model>` : '';
 
-    // Backend CommitMessage now calls AI and stores response
-    // Use GetCompletion to retrieve the AI response
-    yield* this.getCompletionNonStream(id, branch, provider, model);
+    const body = `<tns:CommitMessageRequest>
+      <tns:conversationId>${id}</tns:conversationId>
+      <tns:role>${role}</tns:role>
+      <tns:content><![CDATA[${content}]]></tns:content>
+      ${branchElement}
+      ${providerElement}
+      ${modelElement}
+    </tns:CommitMessageRequest>`;
+
+    const doc = await this.soapCall('CommitMessage', body);
+
+    // Check if AI response is included (direct mode)
+    const aiResponse = this.getElementText(doc, 'tns:aiResponse');
+
+    if (aiResponse) {
+      // Direct mode: AI response included in same call
+      const aiSequenceNumber = this.getElementInt(doc, 'tns:aiSequenceNumber');
+      const aiCommitHash = this.getElementText(doc, 'tns:aiCommitHash');
+
+      yield {
+        type: 'delta',
+        content: aiResponse,
+      };
+
+      yield {
+        type: 'done',
+        sequenceNumber: aiSequenceNumber,
+        commitHash: aiCommitHash,
+      };
+    } else {
+      // Hybrid mode: need to fetch separately
+      // This shouldn't happen in direct mode, but fall back just in case
+      yield* this.getCompletionNonStream(id, branch, provider, model);
+    }
   }
 
   async *getCompletionNonStream(

@@ -24,7 +24,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       requestProtocol: (localStorage.getItem('soapy_request_protocol') as 'rest' | 'soap') || legacyProtocol,
       responseProtocol: (localStorage.getItem('soapy_response_protocol') as 'rest' | 'soap') || legacyProtocol,
       directResponse: directResponseStored !== null ? directResponseStored === 'true' : true,
-      streaming: localStorage.getItem('soapy_streaming') === 'true' || true,
+      streaming: localStorage.getItem('soapy_streaming') === 'true',
     };
   });
 

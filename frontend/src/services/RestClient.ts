@@ -77,7 +77,7 @@ export class RestClient {
     provider?: AIProvider,
     model?: string,
     files?: File[]
-  ): Promise<{ sequenceNumber: number; commitHash: string }> {
+  ): Promise<{ sequenceNumber: number; commitHash: string; aiResponse?: string }> {
     try {
       // Convert files to base64 attachments
       const attachments = files ? await Promise.all(
@@ -103,15 +103,20 @@ export class RestClient {
         })
       ) : undefined;
 
-      // First, post the user message with attachments
+      // Post the user message with attachments and provider/model for direct mode
       const userResponse = await this.fetch(`/v1/chat/${id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ role, content, branch, attachments }),
+        body: JSON.stringify({ role, content, branch, attachments, provider, model }),
       });
 
       const userResult = await userResponse.json();
 
-      // If it's a user message, trigger AI completion
+      // If direct mode (aiResponse present), return it directly
+      if (userResult.aiResponse) {
+        return userResult;
+      }
+
+      // Otherwise, for hybrid mode, trigger AI completion separately
       if (role === 'user') {
         await this.fetch(`/v1/chat/${id}/completion`, {
           method: 'POST',
@@ -183,9 +188,58 @@ export class RestClient {
     model?: string
   ): AsyncGenerator<{ type: string; content?: string; sequenceNumber?: number; commitHash?: string; message?: string }> {
     // For hybrid mode with streaming: message was already submitted, now stream the completion
-    // For now, we'll use non-streaming completion and yield it as a stream
-    // TODO: Add POST /v1/chat/:id/completion/stream endpoint for true streaming
-    yield* this.getCompletionNonStream(id, branch, provider, model);
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/chat/${id}/completion/stream`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ branch, provider, model }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        yield { type: 'error', message: `HTTP ${response.status}: ${errorText}` };
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        yield { type: 'error', message: 'No response body' };
+        return;
+      }
+
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                yield data;
+              } catch (parseError) {
+                console.error('Failed to parse SSE data:', line, parseError);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      yield { type: 'error', message: error instanceof Error ? error.message : 'AI completion failed' };
+    }
   }
 
   async *getCompletionNonStream(
