@@ -1,7 +1,7 @@
 # Copilot Instructions for Soapy
 
-**Last Updated**: 2025-10-01
-**Status**: ✅ 100% IMPLEMENTATION COMPLETE - 55/55 tests passing (100%)
+**Last Updated**: 2025-10-04
+**Status**: ⚠️ 48/58 tests passing (82.8%) - 10 tests failing
 **Project Type**: Hybrid SOAP/REST AI API System with Git-backed storage
 
 ## Tech Stack
@@ -98,7 +98,6 @@ cd frontend && npm install
 **Git-Backed Storage**: Every conversation is a Git repository with:
 - Numbered message files (`0001-user.md`, `0002-assistant.md`)
 - Tool calls/results as JSON (`0003-tool_call.json`, `0003-tool_result.json`)
-- Branding as YAML (`branding.yml`) with HTTPS URL and hex color validation
 - Cryptographic audit via commit hashes
 
 **Multi-Format Conversion**: Converts between:
@@ -124,36 +123,48 @@ cd frontend && npm install
 
 ## API Endpoints
 
-**SOAP** (POST /soap):
-- CommitMessage, BranchConversation, GetConversation, GetBranding, CommitToolCall, CommitToolResult, CommitFile, GetFile
+**SOAP** (POST /soap) - 16 operations:
+- CommitMessage, BranchConversation, GetConversation, CommitToolCall, CommitToolResult, CommitFile, GetFile
+- GetCompletion, ListProviders, GetProviderModels, ListConversations, DeleteConversation, ListBranches, DeleteBranch, ListFiles
 - WSDL available at `/soap?wsdl`
 
-**REST**:
-- POST /conversations/:id/messages - Submit message
-- GET /conversations/:id/messages - List messages
-- POST /conversations/:id/branch - Create branch
-- GET /conversations/:id/branding - Get branding
-- POST /conversations/:id/tools - Submit tool call
-- GET /conversations/:id/stream - SSE streaming
+**REST** - 17 endpoints:
+- POST /v1/chat/:id/messages - Submit message
+- GET /v1/chat/:id - Get conversation
+- POST /v1/chat/:id/branch - Create branch
+- DELETE /v1/chat/:id/branch/:branchName - Delete branch
+- GET /v1/chat/:id/branches - List branches
+- DELETE /v1/chat/:id - Delete conversation
+- GET /v1/conversations - List all conversations
+- POST /v1/chat/:id/tools/call - Submit tool call
+- POST /v1/chat/:id/tools/result - Submit tool result
+- POST /v1/chat/:id/files - Upload file
+- GET /v1/chat/:id/files - List files
+- GET /v1/chat/:id/files/:filename - Download file
+- GET /v1/chat/:id/completion/stream - Stream completion (SSE)
+- POST /v1/chat/:id/messages/stream - Stream messages (SSE)
+- GET /v1/providers - List AI providers
+- GET /v1/providers/:provider/models - List models
+- POST /v1/chat/:id/completion - Direct completion
 - Format negotiation via `Accept` header (openai, anthropic, soap)
 
 ## Testing
 
 **Contract Tests** (33 tests):
-- Branding validation: HTTPS URLs, hex colors (18 tests)
 - SOAP WSDL validation (7 tests)
 - REST API validation (8 tests)
+- Additional contract validations (18 tests)
 
-**Integration Tests** (22 tests):
+**Integration Tests** (58 total tests, 48 passing):
 - Scenario 1: SOAP message submission (3 tests)
 - Scenario 2: REST retrieval (4 tests)
 - Scenario 3: Streaming (4 tests)
-- Scenario 4: Branching (4 tests)
+- Scenario 4: Branching (4 tests, 1 failing)
 - Scenario 5: Tools (3 tests)
-- Scenario 6: Branding (2 tests)
-- Scenario 7: Error handling (2 tests)
+- Scenario 7: Error handling (2 tests, 2 failing)
+- Additional tests: (38 tests, 7 failing)
 
-**Total**: 55/55 tests passing (100%)
+**Total**: 48/58 tests passing (82.8%)
 
 Run: `cd backend && npm test`
 
@@ -165,7 +176,7 @@ Run: `cd backend && npm test`
 
 **TDD** (III): Tests written first, all contract tests written before implementation
 
-**Integration Tests** (IV): 7 acceptance scenarios in tests/integration/ directory
+**Integration Tests** (IV): 6 acceptance scenarios in tests/integration/ directory
 
 **Observability** (V): JSON logging support via CLI `--json` flags, Git commits as audit trail
 
@@ -175,25 +186,29 @@ Run: `cd backend && npm test`
 
 ## Implementation Status
 
-✅ **100% Complete**:
-- Backend setup (TypeScript, Fastify, strong-soap, Vitest)
-- Data models (6 models with validation)
-- SOAP API (all 8 operations implemented: 6 core + CommitFile + GetFile)
-- REST API (10 endpoints including file upload/download/list)
+✅ **Implemented**:
+- Backend setup (TypeScript, Fastify v5, strong-soap v5, Vitest)
+- Data models (5 models: Conversation, Message, Branch, ToolCall, ToolResult)
+- SOAP API (16 operations implemented)
+- REST API (17 endpoints including file upload/download/list, streaming, provider management)
 - Core libraries (git-storage, format-converter, ai-providers, auth)
 - Frontend test client (Vite + React)
 - CLI tools (4 tools: soapy-health, soapy-git, soapy-convert, soapy-ai)
-- Integration test framework (7 scenarios, 55/55 tests passing)
+- Integration test framework (6 scenarios, 48/58 tests passing)
 - Streaming support (SSE)
 - Authentication (integrated via authPlugin, configurable with AUTH_ENABLED)
 - File operations (SOAP and REST endpoints for upload/download)
 - Documentation (README, CHANGELOG, DEPLOYMENT, IMPLEMENTATION_SUMMARY)
 
+⚠️ **Known Issues**:
+- 10 tests currently failing (see test results above)
+- scenario-6-branding removed (branding feature deferred)
+
 🚀 **Future Enhancements**:
 - Production deployment configuration
+- Fix failing tests (10 tests need investigation)
 - Enhanced file storage with actual Git persistence
 - Performance optimization for large conversations
-- Authentication implementation
 
 ## Development Notes
 

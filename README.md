@@ -10,7 +10,6 @@ Soapy is a hybrid SOAP/REST API system providing enterprise-grade conversation m
 - ✅ **Streaming**: SSE and WebSocket support for real-time responses
 - ✅ **Conversation Branching**: Git branches enable alternative conversation paths
 - ✅ **Multi-Provider AI**: OpenAI, Anthropic, Ollama, LM Studio, and any OpenAI-compatible provider
-- ✅ **Per-Conversation Branding**: Customizable UI branding stored in Git
 - ✅ **CLI Tools**: Git-style sub-command interface (soapy git, soapy convert, soapy ai)
 - ✅ **Optional Authentication**: API key-based authentication with organization access control
 
@@ -223,39 +222,62 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ### SOAP Endpoints
 
 - `GET /soap?wsdl` - Retrieve WSDL contract
-- `POST /soap` - SOAP operations:
+- `POST /soap` - SOAP operations (16 total):
   - CommitMessage
   - BranchConversation
   - GetConversation
-  - GetBranding
   - CommitToolCall
   - CommitToolResult
   - CommitFile
   - GetFile
+  - GetCompletion
+  - ListProviders
+  - GetProviderModels
+  - ListConversations
+  - DeleteConversation
+  - ListBranches
+  - DeleteBranch
+  - ListFiles
 
 ### REST Endpoints
 
+Core conversation endpoints:
 - `POST /v1/chat/:id/messages` - Submit message
 - `GET /v1/chat/:id?format={openai|anthropic|soap}` - Get conversation
-- `GET /v1/chat/:id/stream` - Stream conversation (SSE)
 - `POST /v1/chat/:id/branch` - Create branch
-- `GET /v1/chat/:id/branding` - Get branding
+- `DELETE /v1/chat/:id/branch/:branchName` - Delete branch
+- `GET /v1/chat/:id/branches` - List branches
+- `DELETE /v1/chat/:id` - Delete conversation
+- `GET /v1/conversations` - List all conversations
+
+Tool support:
 - `POST /v1/chat/:id/tools/call` - Submit tool call
 - `POST /v1/chat/:id/tools/result` - Submit tool result
+
+File operations:
 - `POST /v1/chat/:id/files` - Upload file
 - `GET /v1/chat/:id/files` - List files
 - `GET /v1/chat/:id/files/:filename` - Download file
+
+Streaming:
+- `GET /v1/chat/:id/completion/stream` - Stream completion (SSE)
+- `POST /v1/chat/:id/messages/stream` - Stream messages (SSE)
+
+AI Provider management:
+- `GET /v1/providers` - List available AI providers
+- `GET /v1/providers/:provider/models` - List models for provider
+- `POST /v1/chat/:id/completion` - Direct completion endpoint
 
 ## Development Status
 
 ### Completed ✅
 
 - [x] Backend project setup with TypeScript + ES modules
-- [x] Data models (6 entities: Conversation, Message, Branch, ToolCall, ToolResult, Branding)
-- [x] SOAP API with WSDL serving (all 8 operations implemented)
-- [x] REST API with 10 endpoints (including file operations)
+- [x] Data models (5 entities: Conversation, Message, Branch, ToolCall, ToolResult)
+- [x] SOAP API with WSDL serving (16 operations implemented)
+- [x] REST API with 17 endpoints (including file operations, streaming, and provider management)
 - [x] Core libraries (git-storage, format-converter, ai-providers, auth)
-- [x] Integration tests (7 scenarios, all 55 tests passing - 100%)
+- [x] Integration tests (6 scenarios, 48/58 tests passing - 82.8%)
 - [x] CLI tools (4 tools: soapy-health, soapy-git, soapy-convert, soapy-ai)
 - [x] Frontend test client (Vite + React)
 - [x] Streaming support (SSE)
@@ -272,9 +294,16 @@ curl -H "Authorization: Bearer key1" http://localhost:3000/v1/chat/conv-123
 ## Testing
 
 Current test results:
-- ✅ Contract tests: 33/33 tests passing (branding validation, SOAP WSDL, REST API)
-- ✅ Integration tests: 22/22 tests passing (all scenarios complete)
-- **Total: 55/55 tests passing (100%)**
+- ✅ Contract tests: 33/33 tests passing (SOAP WSDL, REST API)
+- ⚠️ Integration tests: 48/58 tests passing (6 scenarios complete, 10 tests failing)
+- **Total: 48/58 tests passing (82.8%)**
+
+### Known Test Issues
+- Branching scenario: 1 test failing (branch creation endpoint)
+- Error handling scenario: 2 tests failing (SOAP fault handling, streaming errors)
+- Additional failures: 7 tests need investigation
+
+See [INCONSISTENCY_REPORT.md](INCONSISTENCY_REPORT.md) for details on test failures.
 
 ## Constitutional Principles
 
@@ -283,7 +312,7 @@ This project follows 7 constitutional principles:
 1. **Library-First**: All logic in standalone libraries
 2. **CLI Interface**: Every library has a CLI tool
 3. **TDD**: Tests written first, must fail initially
-4. **Integration Tests**: 7 acceptance scenarios
+4. **Integration Tests**: 6 acceptance scenarios
 5. **Observability**: JSON logging, Git audit trails
 6. **Versioning**: WSDL/OpenAPI versioned independently
 7. **Simplicity**: Use standard libraries, defer optimization
