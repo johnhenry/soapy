@@ -65,7 +65,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
   }));
 
   const handleNewConversation = async () => {
-    const newId = `conv-${Date.now()}`;
+    const newId = `${Date.now()}`;
     // Navigate to the new conversation using full namespaced ID
     const fullId = `default/${newId}`;
     navigate({ to: '/user/$conversationId', params: { conversationId: fullId } });

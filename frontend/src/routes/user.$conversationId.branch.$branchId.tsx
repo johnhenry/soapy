@@ -11,7 +11,7 @@ function BranchComponent() {
   const { conversationId: fullId } = Route.useParams();
   const conversationListRef = useRef<{ refresh: () => void }>(null);
 
-  // Parse namespace and conversationId from full ID (e.g., "default/conv-123")
+  // Parse namespace and conversationId from full ID (e.g., "default/1759598199716")
   const [namespace, conversationId] = fullId.includes('/')
     ? fullId.split('/', 2)
     : ['default', fullId];

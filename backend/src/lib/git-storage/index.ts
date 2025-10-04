@@ -120,7 +120,7 @@ export class GitStorage {
 
           // Iterate through conversation directories within the namespace
           for (const convEntry of conversationEntries) {
-            if (convEntry.isDirectory() && convEntry.name.startsWith('conv-')) {
+            if (convEntry.isDirectory()) {
               // Create namespaced ID for getConversation
               const namespacedId = `${namespaceEntry.name}/${convEntry.name}`;
               const conv = await this.getConversation(namespacedId);
