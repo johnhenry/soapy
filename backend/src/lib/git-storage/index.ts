@@ -2,7 +2,7 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Conversation } from '../../models/conversation.js';
-import { getNamespacedPath } from './namespace.js';
+import { getNamespacedPath, parseConversationId } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -36,9 +36,13 @@ export class GitStorage {
       '.soapy-branches.json\n'
     );
 
-    // Create initial metadata file
+    // Parse the conversation ID to get just the plain ID (without namespace)
+    // for storage in metadata
+    const { id: plainId } = parseConversationId(conversation.id);
+
+    // Create initial metadata file with plain ID
     const metadata = {
-      id: conversation.id,
+      id: plainId,
       organizationId: conversation.organizationId,
       ownerId: conversation.ownerId,
       createdAt: conversation.createdAt.toISOString(),

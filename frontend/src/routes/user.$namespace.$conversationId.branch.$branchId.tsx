@@ -17,7 +17,6 @@ function BranchComponent() {
         <ConversationList
           ref={conversationListRef}
           selectedId={conversationId}
-          onSelect={() => {}}
         />
       </aside>
 

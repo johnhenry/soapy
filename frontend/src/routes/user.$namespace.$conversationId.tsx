@@ -17,7 +17,6 @@ function ConversationComponent() {
         <ConversationList
           ref={conversationListRef}
           selectedId={conversationId}
-          onSelect={() => {}}
         />
       </aside>
 

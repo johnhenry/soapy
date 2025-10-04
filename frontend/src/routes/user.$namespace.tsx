@@ -12,7 +12,7 @@ function NamespaceComponent() {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <ConversationList ref={conversationListRef} selectedId={null} onSelect={() => {}} />
+        <ConversationList ref={conversationListRef} selectedId={null} />
       </aside>
 
       <main className="main-content">

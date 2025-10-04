@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 
 interface ConversationListProps {
   selectedId: string | null;
-  onSelect: (id: string) => void;
   onConversationCreated?: () => void;
 }
 
@@ -28,7 +27,7 @@ interface Conversation {
 }
 
 const ConversationListComponent = forwardRef<{ refresh: () => void }, ConversationListProps>(
-  ({ selectedId, onSelect, onConversationCreated }, ref) => {
+  ({ selectedId, onConversationCreated }, ref) => {
   const navigate = useNavigate();
   const { config } = useApi();
   const [conversations, setConversations] = useState<Conversation[]>([]);
