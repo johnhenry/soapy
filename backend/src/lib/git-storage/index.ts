@@ -2,6 +2,7 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Conversation } from '../../models/conversation.js';
+import { getNamespacedPath } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -17,7 +18,7 @@ export class GitStorage {
   }
 
   private getConversationPath(conversationId: string): string {
-    return join(this.conversationsDir, conversationId);
+    return getNamespacedPath(this.conversationsDir, conversationId);
   }
 
   async createConversation(conversation: Conversation): Promise<void> {

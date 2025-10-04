@@ -1,29 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ConversationList } from '../components/ConversationList';
-import { useRef } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
 
 export const Route = createFileRoute('/')({
   component: IndexComponent,
 });
 
 function IndexComponent() {
-  const conversationListRef = useRef<{ refresh: () => void }>(null);
+  const navigate = useNavigate();
 
-  return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <ConversationList ref={conversationListRef} selectedId={null} onSelect={() => {}} />
-      </aside>
+  // Redirect to default namespace
+  useEffect(() => {
+    navigate({ to: '/$namespace', params: { namespace: 'default' } });
+  }, [navigate]);
 
-      <main className="main-content">
-        <div className="empty-state">
-          <h2>Welcome to Soapy</h2>
-          <p>Select a conversation or create a new one to get started</p>
-          <p className="help-text">
-            Full-featured AI conversation management with Git-backed storage, branching, and multi-format support
-          </p>
-        </div>
-      </main>
-    </div>
-  );
+  return null;
 }

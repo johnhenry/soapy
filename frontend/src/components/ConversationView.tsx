@@ -21,11 +21,12 @@ import { X } from 'lucide-react';
 import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
 
 interface ConversationViewProps {
+  namespace: string;
   conversationId: string;
   onConversationCreated?: () => void;
 }
 
-export function ConversationView({ conversationId, onConversationCreated }: ConversationViewProps) {
+export function ConversationView({ namespace, conversationId, onConversationCreated }: ConversationViewProps) {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { branchId?: string };
   const { config } = useApi();
@@ -36,6 +37,9 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   // Use branchId from URL if present, otherwise default to 'main'
   const currentBranch = params.branchId || 'main';
   const [branches, setBranches] = useState<Array<{ name: string; sourceMessageNumber: number }>>([]);
+  
+  // Create namespaced conversation ID for API calls
+  const namespacedId = `${namespace}/${conversationId}`;
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4o');
   const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([]);
@@ -92,7 +96,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
     try {
       setLoading(true);
       setError(null);
-      const conversationItems = await client.getConversationItems(conversationId, currentBranch !== 'main' ? currentBranch : undefined);
+      const conversationItems = await client.getConversationItems(namespacedId, currentBranch !== 'main' ? currentBranch : undefined);
       setItems(conversationItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation');
@@ -103,7 +107,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
   const loadBranches = async () => {
     try {
-      const branchList = await client.getBranches(conversationId);
+      const branchList = await client.getBranches(namespacedId);
       setBranches(branchList);
     } catch (err) {
       console.error('Failed to load branches:', err);
@@ -144,7 +148,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         // Stream the response
         let streamedContent = '';
         for await (const chunk of client.sendMessageStream(
-          conversationId,
+          namespacedId,
           'user',
           content,
           currentBranch !== 'main' ? currentBranch : undefined,
@@ -197,7 +201,7 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
         setItems([...items, optimisticUserMessage, loadingMessage]);
 
         await client.sendMessage(
-          conversationId,
+          namespacedId,
           'user',
           content,
           currentBranch !== 'main' ? currentBranch : undefined,
@@ -227,15 +231,15 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   const handleBranchFromMessage = async (sequenceNumber: number, branchName: string) => {
     try {
       setError(null);
-      await client.createBranch(conversationId, branchName, sequenceNumber);
+      await client.createBranch(namespacedId, branchName, sequenceNumber);
 
       // Reload branches to update dropdown
       await loadBranches();
 
       // Switch to the new branch via URL navigation
       navigate({ 
-        to: '/$conversationId/$branchId', 
-        params: { conversationId, branchId: branchName } 
+        to: '/$namespace/$conversationId/$branchId', 
+        params: { namespace, conversationId, branchId: branchName } 
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
@@ -249,10 +253,10 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
 
     try {
       setError(null);
-      await client.deleteBranch(conversationId, currentBranch);
+      await client.deleteBranch(namespacedId, currentBranch);
 
       // Switch to main via URL navigation
-      navigate({ to: '/$conversationId', params: { conversationId } });
+      navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
 
       // Reload branches
       await loadBranches();
@@ -271,11 +275,11 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
               value={currentBranch} 
               onValueChange={(branch) => {
                 if (branch === 'main') {
-                  navigate({ to: '/$conversationId', params: { conversationId } });
+                  navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
                 } else {
                   navigate({ 
-                    to: '/$conversationId/$branchId', 
-                    params: { conversationId, branchId: branch } 
+                    to: '/$namespace/$conversationId/$branchId', 
+                    params: { namespace, conversationId, branchId: branch } 
                   });
                 }
               }}
@@ -324,11 +328,11 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           currentBranch={currentBranch}
           onBranchSwitch={(branch) => {
             if (branch === 'main') {
-              navigate({ to: '/$conversationId', params: { conversationId } });
+              navigate({ to: '/$namespace/$conversationId', params: { namespace, conversationId } });
             } else {
               navigate({ 
-                to: '/$conversationId/$branchId', 
-                params: { conversationId, branchId: branch } 
+                to: '/$namespace/$conversationId/$branchId', 
+                params: { namespace, conversationId, branchId: branch } 
               });
             }
           }}

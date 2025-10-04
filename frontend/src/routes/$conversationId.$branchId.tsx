@@ -8,7 +8,7 @@ export const Route = createFileRoute('/$conversationId/$branchId')({
 });
 
 function BranchComponent() {
-  const { conversationId } = Route.useParams();
+  const { namespace, conversationId } = Route.useParams();
   const conversationListRef = useRef<{ refresh: () => void }>(null);
 
   return (
@@ -23,6 +23,7 @@ function BranchComponent() {
 
       <main className="main-content">
         <ConversationView
+          namespace={namespace}
           conversationId={conversationId}
           onConversationCreated={() => conversationListRef.current?.refresh()}
         />

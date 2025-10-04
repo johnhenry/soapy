@@ -67,8 +67,8 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
 
   const handleNewConversation = async () => {
     const newId = `conv-${Date.now()}`;
-    // Navigate to the new conversation using router
-    navigate({ to: '/$conversationId', params: { conversationId: newId } });
+    // Navigate to the new conversation using router with default namespace
+    navigate({ to: '/$namespace/$conversationId', params: { namespace: 'default', conversationId: newId } });
     // Reload conversations after a brief delay to allow backend to create it
     setTimeout(() => {
       loadConversations();
@@ -89,7 +89,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
 
       // If deleted conversation was selected, clear selection
       if (selectedId === deleteConfirm.id) {
-        navigate({ to: '/' });
+        navigate({ to: '/$namespace', params: { namespace: 'default' } });
       }
 
       // Reload conversation list
@@ -132,7 +132,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
                 "flex-1 justify-start h-auto py-2 px-3",
                 selectedId === conv.id && "bg-secondary"
               )}
-              onClick={() => navigate({ to: '/$conversationId', params: { conversationId: conv.id } })}
+              onClick={() => navigate({ to: '/$namespace/$conversationId', params: { namespace: 'default', conversationId: conv.id } })}
             >
               <div className="flex flex-col items-start w-full">
                 <div className="font-medium text-sm truncate w-full text-left">{conv.title}</div>
