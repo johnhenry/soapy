@@ -238,9 +238,9 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
       await loadBranches();
 
       // Switch to the new branch via URL navigation
-      navigate({ 
-        to: '/user/$namespace/$conversationId/branch/$branchId', 
-        params: { namespace, conversationId, branchId: branchName } 
+      navigate({
+        to: '/user/$conversationId/branch/$branchId',
+        params: { conversationId: namespacedId, branchId: branchName }
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create branch');
@@ -257,7 +257,7 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
       await client.deleteBranch(namespacedId, currentBranch);
 
       // Switch to main via URL navigation
-      navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
+      navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
 
       // Reload branches
       await loadBranches();
@@ -276,11 +276,11 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
               value={currentBranch} 
               onValueChange={(branch) => {
                 if (branch === 'main') {
-                  navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
+                  navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
                 } else {
-                  navigate({ 
-                    to: '/user/$namespace/$conversationId/branch/$branchId', 
-                    params: { namespace, conversationId, branchId: branch } 
+                  navigate({
+                    to: '/user/$conversationId/branch/$branchId',
+                    params: { conversationId: namespacedId, branchId: branch }
                   });
                 }
               }}
@@ -329,11 +329,11 @@ export function ConversationView({ appsection, namespace, conversationId, onConv
           currentBranch={currentBranch}
           onBranchSwitch={(branch) => {
             if (branch === 'main') {
-              navigate({ to: '/user/$namespace/$conversationId', params: { namespace, conversationId } });
+              navigate({ to: '/user/$conversationId', params: { conversationId: namespacedId } });
             } else {
-              navigate({ 
-                to: '/user/$namespace/$conversationId/branch/$branchId', 
-                params: { namespace, conversationId, branchId: branch } 
+              navigate({
+                to: '/user/$conversationId/branch/$branchId',
+                params: { conversationId: namespacedId, branchId: branch }
               });
             }
           }}

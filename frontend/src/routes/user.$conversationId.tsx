@@ -3,20 +3,25 @@ import { ConversationList } from '../components/ConversationList';
 import { ConversationView } from '../components/ConversationView';
 import { useRef } from 'react';
 
-export const Route = createFileRoute('/user/$namespace/$conversationId')({
+export const Route = createFileRoute('/user/$conversationId')({
   component: ConversationComponent,
 });
 
 function ConversationComponent() {
-  const { namespace, conversationId } = Route.useParams();
+  const { conversationId: fullId } = Route.useParams();
   const conversationListRef = useRef<{ refresh: () => void }>(null);
+
+  // Parse namespace and conversationId from full ID (e.g., "default/conv-123")
+  const [namespace, conversationId] = fullId.includes('/')
+    ? fullId.split('/', 2)
+    : ['default', fullId];
 
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <ConversationList
           ref={conversationListRef}
-          selectedId={conversationId}
+          selectedId={fullId}
         />
       </aside>
 
