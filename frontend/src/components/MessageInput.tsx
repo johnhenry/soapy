@@ -1,5 +1,9 @@
 import { useState, useRef, KeyboardEvent } from 'react';
-import './MessageInput.css';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Paperclip, Send, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
   onSend: (content: string, files?: File[]) => void;
@@ -47,59 +51,66 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   };
 
   return (
-    <div className="message-input">
+    <div className={cn(
+      "border-t bg-background p-4",
+      "border-border"
+    )}>
       {files.length > 0 && (
-        <div className="attached-files">
+        <div className="flex flex-wrap gap-2 mb-3">
           {files.map((file, index) => (
-            <div key={index} className="attached-file">
-              <span className="file-name">{file.name}</span>
-              <button
+            <Badge key={index} variant="secondary" className="gap-2 pr-1">
+              <span className="text-xs">{file.name}</span>
+              <Button
                 type="button"
-                className="remove-file"
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 hover:bg-transparent"
                 onClick={() => removeFile(index)}
                 aria-label="Remove file"
               >
-                ×
-              </button>
-            </div>
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
           ))}
         </div>
       )}
-      <div className="input-area">
-        <textarea
+      <div className="flex flex-col gap-2">
+        <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type your message... (Shift+Enter for new line)"
           disabled={disabled}
           rows={3}
+          className="resize-y min-h-[60px] max-h-[200px]"
         />
-        <div className="input-actions">
+        <div className="flex gap-2 justify-end">
           <input
             id={fileInputId}
             ref={fileInputRef}
             type="file"
             multiple
             onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className="hidden"
           />
-          <button
+          <Button
             type="button"
-            className="secondary small"
+            variant="secondary"
+            size="sm"
             onClick={handleAttachClick}
             disabled={disabled}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8.5 1.5A1.5 1.5 0 007 3v9a1.5 1.5 0 003 0V5a.5.5 0 00-1 0v7a.5.5 0 01-1 0V3a.5.5 0 011 0v8.5a.5.5 0 001 0V3A1.5 1.5 0 008.5 1.5z" />
-            </svg>
+            <Paperclip className="h-4 w-4" />
             Attach
-          </button>
-          <button onClick={handleSend} disabled={disabled || (!content.trim() && files.length === 0)}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M15.854.146a.5.5 0 01.11.54l-5.819 14.547a.75.75 0 01-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 01.124-1.33L15.314.037a.5.5 0 01.54.11z" />
-            </svg>
+          </Button>
+          <Button 
+            size="sm"
+            onClick={handleSend} 
+            disabled={disabled || (!content.trim() && files.length === 0)}
+          >
+            <Send className="h-4 w-4" />
             Send
-          </button>
+          </Button>
         </div>
       </div>
     </div>

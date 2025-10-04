@@ -2,6 +2,8 @@
 
 A comprehensive React + TypeScript frontend for the Soapy hybrid SOAP/REST AI API system.
 
+**UI Framework**: Built with [shadcn/ui](https://ui.shadcn.com/) + Tailwind CSS for modern, accessible components.
+
 ## Features
 
 ### 🎯 Core Functionality
@@ -44,6 +46,22 @@ A comprehensive React + TypeScript frontend for the Soapy hybrid SOAP/REST AI AP
 - **Retry Counts**: Track automatic retry attempts
 
 ## Architecture
+
+### Technology Stack
+
+**Core**:
+- React 18.2 with TypeScript 5.3
+- Vite 5.0 for build tooling
+- shadcn/ui components (8/9 migrated)
+- Tailwind CSS 3.x for styling
+- Lucide React for icons
+
+**Key Dependencies**:
+- Radix UI primitives (Dialog, Select, Checkbox, Tabs, Label)
+- Class Variance Authority for component variants
+- Tailwind Merge for class utilities
+
+See [MIGRATION.md](./MIGRATION.md) for detailed shadcn/ui migration documentation.
 
 ### Components
 

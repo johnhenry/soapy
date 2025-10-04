@@ -21,19 +21,22 @@
 .message {
   padding: 1rem;
   border-radius: var(--radius);
-  background: var(--bg-secondary);
+  background: var(--bg);
   max-width: 80%;
+  border: 1px solid var(--border);
 }
 
 .message-user {
   align-self: flex-end;
-  background: var(--primary);
+  background: var(--primary-old);
   color: white;
+  border-color: var(--primary-old);
 }
 
 .message-assistant {
   align-self: flex-start;
-  background: var(--bg-secondary);
+  background: var(--bg);
+  border-color: var(--border);
 }
 
 .message-system {

@@ -1,8 +1,12 @@
 import { useState, useEffect, DragEvent } from 'react';
 import { useApi } from '../context/ApiContext';
 import { RestClient } from '../services/RestClient';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Upload, Download, FileIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { FileAttachment } from '../types';
-import './FileUploader.css';
 
 interface FileUploaderProps {
   conversationId: string;
@@ -99,64 +103,97 @@ export function FileUploader({ conversationId }: FileUploaderProps) {
   };
 
   return (
-    <div className="file-uploader">
+    <div className="p-4 space-y-4">
       <div
-        className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
+        className={cn(
+          "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+          dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50",
+          uploading && "opacity-50 pointer-events-none"
+        )}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
-        <p>Drag and drop files here</p>
-        <p className="drop-zone-hint">or</p>
-        <label className="file-input-label">
-          <input type="file" multiple onChange={handleFileInput} disabled={uploading} />
-          <span>Browse Files</span>
+        <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <p className="text-sm font-medium mb-1">Drag and drop files here</p>
+        <p className="text-xs text-muted-foreground mb-4">or</p>
+        <label>
+          <input 
+            type="file" 
+            multiple 
+            onChange={handleFileInput} 
+            disabled={uploading} 
+            className="hidden"
+          />
+          <Button asChild variant="secondary" disabled={uploading}>
+            <span className="cursor-pointer">Browse Files</span>
+          </Button>
         </label>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="bg-destructive/15 text-destructive px-3 py-2 rounded-md text-sm">
+          {error}
+        </div>
+      )}
 
-      {uploading && <div className="upload-progress">Uploading files...</div>}
+      {uploading && (
+        <div className="text-center text-sm text-muted-foreground py-2">
+          Uploading files...
+        </div>
+      )}
 
-      {loading ? (
-        <div className="loading">Loading files...</div>
-      ) : (
-        <div className="file-list">
-          <h3>Uploaded Files</h3>
-          {files.length === 0 ? (
-            <div className="empty-state">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileIcon className="h-5 w-5" />
+            Uploaded Files
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center text-muted-foreground py-4">Loading files...</div>
+          ) : files.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
               <p>No files uploaded yet.</p>
             </div>
           ) : (
-            <div className="files">
+            <div className="space-y-2">
               {files.map((file) => (
-                <div key={file.filename} className="file-item">
-                  <div className="file-info">
-                    <div className="file-name">{file.filename}</div>
-                    <div className="file-meta">
-                      <span>{formatFileSize(file.size)}</span>
+                <div 
+                  key={file.filename} 
+                  className="flex items-start justify-between gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="font-medium text-sm truncate">{file.filename}</div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="font-mono">
+                        {formatFileSize(file.size)}
+                      </Badge>
                       <span>{file.contentType}</span>
-                      <span title={file.hash}>{file.hash.substring(0, 8)}...</span>
+                      <Badge variant="outline" className="font-mono" title={file.hash}>
+                        {file.hash.substring(0, 8)}...
+                      </Badge>
                     </div>
-                    <div className="file-date">
+                    <div className="text-xs text-muted-foreground">
                       Uploaded {new Date(file.uploadedAt).toLocaleString()}
                     </div>
                   </div>
-                  <button
-                    className="secondary small"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleDownload(file.filename)}
                   >
+                    <Download className="h-4 w-4" />
                     Download
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
+

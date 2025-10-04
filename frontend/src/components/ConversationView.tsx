@@ -6,8 +6,18 @@ import { MessageInput } from './MessageInput';
 import { BranchManager } from './BranchManager';
 import { FileUploader } from './FileUploader';
 import { ToolCallView } from './ToolCallView';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { X } from 'lucide-react';
 import type { Message, ToolCall, ToolResult, ConversationItem, AIProvider } from '../types';
-import './ConversationView.css';
 
 interface ConversationViewProps {
   conversationId: string;
@@ -248,37 +258,47 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
   };
 
   return (
-    <div className="conversation-view">
-      <div className="conversation-header">
-        <div className="branch-info">
-          <div className="branch-selector">
-            <label>Branch:</label>
-            <select value={currentBranch} onChange={(e) => setCurrentBranch(e.target.value)}>
-              <option value="main">main</option>
-              {branches.map((branch) => (
-                <option key={branch.name} value={branch.name}>{branch.name}</option>
-              ))}
-            </select>
+    <div className="flex flex-col h-full">
+      <div className="border-b p-3 bg-background">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="branch-select" className="text-sm">Branch:</Label>
+            <Select value={currentBranch} onValueChange={setCurrentBranch}>
+              <SelectTrigger id="branch-select" className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="main">main</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.name} value={branch.name}>{branch.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {currentBranch !== 'main' && (
-              <button
-                className="delete-branch-btn"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleDeleteBranch}
                 title={`Delete branch "${currentBranch}"`}
               >
-                ×
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
-          <div className="branch-stats">
-            {items.length} item{items.length !== 1 ? 's' : ''}
-            {currentBranch !== 'main' && <span className="branch-indicator">📍 viewing branch</span>}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
+            {currentBranch !== 'main' && <Badge variant="secondary">📍 viewing branch</Badge>}
           </div>
         </div>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="bg-destructive text-destructive-foreground px-4 py-2 text-sm">
+          {error}
+        </div>
+      )}
 
-      <div className="conversation-content">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <MessageList
           conversationId={conversationId}
           items={items}
@@ -288,28 +308,41 @@ export function ConversationView({ conversationId, onConversationCreated }: Conv
           currentBranch={currentBranch}
           onBranchSwitch={setCurrentBranch}
         />
-        <div className="ai-controls">
-              <label>
-                Provider:
-                <select value={selectedProvider} onChange={async (e) => {
-                  const newProvider = e.target.value as AIProvider;
-                  setSelectedProvider(newProvider);
-                  await loadModels(newProvider);
-                }}>
-                  {availableProviders.map((provider) => (
-                    <option key={provider} value={provider}>{providerNames[provider]}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Model:
-                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                  {availableModels.map((model) => (
-                    <option key={model} value={model}>{model}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
+        <div className="border-t p-3 bg-muted/50 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="provider-select" className="text-sm">Provider:</Label>
+            <Select 
+              value={selectedProvider} 
+              onValueChange={async (value) => {
+                const newProvider = value as AIProvider;
+                setSelectedProvider(newProvider);
+                await loadModels(newProvider);
+              }}
+            >
+              <SelectTrigger id="provider-select" className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableProviders.map((provider) => (
+                  <SelectItem key={provider} value={provider}>{providerNames[provider]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="model-select" className="text-sm">Model:</Label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger id="model-select" className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((model) => (
+                  <SelectItem key={model} value={model}>{model}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <MessageInput onSend={handleSendMessage} disabled={streaming || loading} />
       </div>
     </div>
