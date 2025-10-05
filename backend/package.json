@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc && cp src/api/soap/soapy.wsdl dist/api/soap/",
     "dev": "tsx watch src/index.ts",
+    "dev:re": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "LOG_LEVEL=silent vitest run --exclude '**/e2e/**'",
     "test:api": "LOG_LEVEL=silent vitest run tests/e2e",

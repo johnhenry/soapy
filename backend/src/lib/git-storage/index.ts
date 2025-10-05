@@ -27,8 +27,8 @@ export class GitStorage {
     // Create directory
     await fs.promises.mkdir(dir, { recursive: true });
 
-    // Initialize Git repository
-    await git.init({ fs, dir, defaultBranch: conversation.mainBranch || 'main' });
+    // Initialize Git repository (always use 'main' as initial branch name)
+    await git.init({ fs, dir, defaultBranch: 'main' });
 
     // Create .gitignore to exclude branch metadata cache
     await fs.promises.writeFile(
@@ -46,7 +46,6 @@ export class GitStorage {
       organizationId: conversation.organizationId,
       ownerId: conversation.ownerId,
       createdAt: conversation.createdAt.toISOString(),
-      mainBranch: conversation.mainBranch,
       branches: conversation.branches,
     };
 
@@ -84,7 +83,6 @@ export class GitStorage {
         organizationId: metadata.organizationId,
         ownerId: metadata.ownerId,
         createdAt: new Date(metadata.createdAt),
-        mainBranch: metadata.mainBranch,
         branches: metadata.branches,
       };
     } catch (error) {

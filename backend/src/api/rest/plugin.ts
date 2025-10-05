@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { gitStorage } from '../../lib/git-storage/index.js';
 import { commitMessage, getMessages, getConversationItems, commitToolCall, commitToolResult } from '../../lib/git-storage/message.js';
-import { createBranch, getBranches, deleteBranch } from '../../lib/git-storage/branch.js';
+import { createBranch, getBranches, deleteBranch, getCurrentBranch } from '../../lib/git-storage/branch.js';
 import { aiOrchestrator, type ProviderType } from '../../lib/ai-providers/index.js';
 import type { MessageRole } from '../../models/message.js';
 import { getNamespacedPath } from '../../lib/git-storage/namespace.js';
@@ -115,9 +115,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     reply.send({ conversations: conversationsWithMeta });
   });
 
-  // POST /v1/chat/:id/messages - Submit message
-  fastify.post('/v1/chat/:id/messages', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/messages - Submit message
+  fastify.post('/v1/chat/:namespace/:conversationId/messages', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as {
       role: MessageRole;
       content: string;
@@ -139,7 +140,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         organizationId: 'default',
         ownerId: 'default',
         createdAt: new Date(),
-        mainBranch: 'main',
         branches: ['main'],
       });
     }
@@ -234,16 +234,8 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
           fastify.log.error(error, 'AI provider error in direct mode');
         }
       }
-    } finally {
-      // Always return to main branch after message operations
-      if (body.branch) {
-        const git = await import('isomorphic-git');
-        const fs = await import('fs');
-        const { join } = await import('path');
-        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
-        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
-      }
+    } catch (error) {
+      throw error;
     }
 
     const response: any = {
@@ -263,9 +255,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     reply.code(201).send(response);
   });
 
-  // POST /v1/chat/:id/completion - Get AI completion (non-streaming, supports tools)
-  fastify.post('/v1/chat/:id/completion', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/completion - Get AI completion (non-streaming, supports tools)
+  fastify.post('/v1/chat/:namespace/:conversationId/completion', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as {
       provider?: ProviderType;
       model?: string;
@@ -574,25 +567,16 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         };
       }
 
-      // Return to main branch if we were on a different branch
-      if (body.branch) {
-        const git = await import('isomorphic-git');
-        const fs = await import('fs');
-        const { join } = await import('path');
-        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
-        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
-      }
-
       reply.send(results);
     } catch (error) {
       reply.code(500).send({ error: 'AI completion failed' });
     }
   });
 
-  // POST /v1/chat/:id/completion/stream - Get AI completion with streaming
-  fastify.post('/v1/chat/:id/completion/stream', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/completion/stream - Get AI completion with streaming
+  fastify.post('/v1/chat/:namespace/:conversationId/completion/stream', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as {
       provider?: ProviderType;
       model?: string;
@@ -720,9 +704,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // GET /v1/chat/:id - Get conversation
-  fastify.get('/v1/chat/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // GET /v1/chat/:namespace/:id - Get conversation (supports namespaced IDs)
+  fastify.get('/v1/chat/:namespace/:id', async (request, reply) => {
+    const { namespace, id: conversationId } = request.params as { namespace: string; id: string };
+    const id = `${namespace}/${conversationId}`;
     const { format, branch, includeTools } = request.query as { format?: string; branch?: string; includeTools?: string };
 
     if (!(await gitStorage.conversationExists(id))) {
@@ -788,9 +773,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // GET /v1/chat/:id/stream - Stream conversation updates via SSE
-  fastify.get('/v1/chat/:id/stream', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // GET /v1/chat/:namespace/:conversationId/stream - Stream conversation updates via SSE
+  fastify.get('/v1/chat/:namespace/:conversationId/stream', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
 
     // Set up SSE headers
     reply.raw.writeHead(200, {
@@ -812,9 +798,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     reply.raw.end();
   });
 
-  // POST /v1/chat/:id/messages/stream - Submit message with streaming response
-  fastify.post('/v1/chat/:id/messages/stream', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/messages/stream - Submit message with streaming response
+  fastify.post('/v1/chat/:namespace/:conversationId/messages/stream', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as {
       role: MessageRole;
       content: string;
@@ -830,7 +817,6 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         organizationId: 'default',
         ownerId: 'default',
         createdAt: new Date(),
-        mainBranch: 'main',
         branches: ['main'],
       });
     }
@@ -979,22 +965,14 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
         reply.raw.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       }
     } finally {
-      // Return to main branch after message operations
-      if (body.branch) {
-        const git = await import('isomorphic-git');
-        const fs = await import('fs');
-        const { join } = await import('path');
-        const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-        const dir = getNamespacedPath(CONVERSATIONS_DIR, id);
-        await git.default.checkout({ fs: fs.default, dir, ref: 'main' });
-      }
       reply.raw.end();
     }
   });
 
-  // POST /v1/chat/:id/branch - Create branch
-  fastify.post('/v1/chat/:id/branch', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/branch - Create branch
+  fastify.post('/v1/chat/:namespace/:conversationId/branch', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as { branchName: string; fromMessage: number };
 
     try {
@@ -1040,9 +1018,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // POST /v1/chat/:id/tools/call - Submit tool call
-  fastify.post('/v1/chat/:id/tools/call', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/tools/call - Submit tool call
+  fastify.post('/v1/chat/:namespace/:conversationId/tools/call', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
 
     reply.code(201).send({
       conversationId: id,
@@ -1052,9 +1031,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // POST /v1/chat/:id/tools/result - Submit tool result
-  fastify.post('/v1/chat/:id/tools/result', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/tools/result - Submit tool result
+  fastify.post('/v1/chat/:namespace/:conversationId/tools/result', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
 
     reply.code(201).send({
       conversationId: id,
@@ -1064,9 +1044,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // POST /v1/chat/:id/files - Upload file
-  fastify.post('/v1/chat/:id/files', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // POST /v1/chat/:namespace/:conversationId/files - Upload file
+  fastify.post('/v1/chat/:namespace/:conversationId/files', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
     const body = request.body as {
       filename: string;
       contentType: string;
@@ -1096,9 +1077,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // GET /v1/chat/:id/files - List files
-  fastify.get('/v1/chat/:id/files', async (request, reply) => {
-    const { id } = request.params as { id: string };
+  // GET /v1/chat/:namespace/:conversationId/files - List files
+  fastify.get('/v1/chat/:namespace/:conversationId/files', async (request, reply) => {
+    const { namespace, conversationId } = request.params as { namespace: string; conversationId: string };
+    const id = `${namespace}/${conversationId}`;
 
     reply.send({
       conversationId: id,
@@ -1106,9 +1088,10 @@ const restPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // GET /v1/chat/:id/files/:filename - Download file
-  fastify.get('/v1/chat/:id/files/:filename', async (request, reply) => {
-    const { id, filename } = request.params as { id: string; filename: string };
+  // GET /v1/chat/:namespace/:conversationId/files/:filename - Download file
+  fastify.get('/v1/chat/:namespace/:conversationId/files/:filename', async (request, reply) => {
+    const { namespace, conversationId, filename } = request.params as { namespace: string; conversationId: string; filename: string };
+    const id = `${namespace}/${conversationId}`;
 
     try {
       const { join } = await import('path');
