@@ -92,7 +92,9 @@ export function ConversationView({ appsection, namespace, conversationId, branch
     try {
       setLoading(true);
       setError(null);
-      const conversationItems = await client.getConversationItems(namespacedId, branch !== 'main' ? branch : undefined);
+      console.log(`[ConversationView] loadItems called with branch: ${branch}`);
+      // Always pass the branch explicitly (including 'main')
+      const conversationItems = await client.getConversationItems(namespacedId, branch);
       setItems(conversationItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation');
@@ -147,7 +149,7 @@ export function ConversationView({ appsection, namespace, conversationId, branch
           namespacedId,
           'user',
           content,
-          currentBranch !== 'main' ? currentBranch : undefined,
+          currentBranch, // Always pass branch explicitly
           selectedProvider,
           selectedModel
         )) {
@@ -164,7 +166,7 @@ export function ConversationView({ appsection, namespace, conversationId, branch
             });
           } else if (chunk.type === 'done') {
             // Refresh to get final committed items with proper metadata
-            await loadItems();
+            await loadItems(currentBranch);
             // Notify parent that conversation was created (for first message)
             if (items.length === 0) {
               onConversationCreated?.();
@@ -200,14 +202,14 @@ export function ConversationView({ appsection, namespace, conversationId, branch
           namespacedId,
           'user',
           content,
-          currentBranch !== 'main' ? currentBranch : undefined,
+          currentBranch, // Always pass branch explicitly
           selectedProvider,
           selectedModel,
           files
         );
 
         // Refresh to get all items including AI response and tool calls
-        await loadItems();
+        await loadItems(currentBranch);
 
         // Notify parent that conversation was created (for first message)
         if (items.length === 0) {
@@ -218,7 +220,7 @@ export function ConversationView({ appsection, namespace, conversationId, branch
       console.error('ERROR in handleSendMessage:', err);
       setError(err instanceof Error ? err.message : 'Failed to send message');
       // Reload items to remove optimistic updates on error
-      await loadItems();
+      await loadItems(currentBranch);
     } finally {
       setStreaming(false);
     }
