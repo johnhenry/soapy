@@ -2,6 +2,7 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Conversation } from '../../models/conversation.js';
+import { getNamespacedPath, parseConversationId } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -17,7 +18,7 @@ export class GitStorage {
   }
 
   private getConversationPath(conversationId: string): string {
-    return join(this.conversationsDir, conversationId);
+    return getNamespacedPath(this.conversationsDir, conversationId);
   }
 
   async createConversation(conversation: Conversation): Promise<void> {
@@ -26,8 +27,8 @@ export class GitStorage {
     // Create directory
     await fs.promises.mkdir(dir, { recursive: true });
 
-    // Initialize Git repository
-    await git.init({ fs, dir, defaultBranch: conversation.mainBranch || 'main' });
+    // Initialize Git repository (always use 'main' as initial branch name)
+    await git.init({ fs, dir, defaultBranch: 'main' });
 
     // Create .gitignore to exclude branch metadata cache
     await fs.promises.writeFile(
@@ -35,13 +36,16 @@ export class GitStorage {
       '.soapy-branches.json\n'
     );
 
-    // Create initial metadata file
+    // Parse the conversation ID to get just the plain ID (without namespace)
+    // for storage in metadata
+    const { id: plainId } = parseConversationId(conversation.id);
+
+    // Create initial metadata file with plain ID
     const metadata = {
-      id: conversation.id,
+      id: plainId,
       organizationId: conversation.organizationId,
       ownerId: conversation.ownerId,
       createdAt: conversation.createdAt.toISOString(),
-      mainBranch: conversation.mainBranch,
       branches: conversation.branches,
     };
 
@@ -72,12 +76,13 @@ export class GitStorage {
       const data = await fs.promises.readFile(metadataPath, 'utf-8');
       const metadata = JSON.parse(data);
 
+      // Return the namespaced ID that was passed in, not the metadata.id
+      // This ensures the returned conversation has the full namespaced ID
       return {
-        id: metadata.id,
+        id: conversationId,
         organizationId: metadata.organizationId,
         ownerId: metadata.ownerId,
         createdAt: new Date(metadata.createdAt),
-        mainBranch: metadata.mainBranch,
         branches: metadata.branches,
       };
     } catch (error) {
@@ -102,14 +107,25 @@ export class GitStorage {
 
   async listConversations(): Promise<Conversation[]> {
     try {
-      const entries = await fs.promises.readdir(this.conversationsDir, { withFileTypes: true });
       const conversations: Conversation[] = [];
+      const namespaceEntries = await fs.promises.readdir(this.conversationsDir, { withFileTypes: true });
 
-      for (const entry of entries) {
-        if (entry.isDirectory() && entry.name.startsWith('conv-')) {
-          const conv = await this.getConversation(entry.name);
-          if (conv) {
-            conversations.push(conv);
+      // Iterate through namespace directories (e.g., "default")
+      for (const namespaceEntry of namespaceEntries) {
+        if (namespaceEntry.isDirectory()) {
+          const namespacePath = join(this.conversationsDir, namespaceEntry.name);
+          const conversationEntries = await fs.promises.readdir(namespacePath, { withFileTypes: true });
+
+          // Iterate through conversation directories within the namespace
+          for (const convEntry of conversationEntries) {
+            if (convEntry.isDirectory()) {
+              // Create namespaced ID for getConversation
+              const namespacedId = `${namespaceEntry.name}/${convEntry.name}`;
+              const conv = await this.getConversation(namespacedId);
+              if (conv) {
+                conversations.push(conv);
+              }
+            }
           }
         }
       }

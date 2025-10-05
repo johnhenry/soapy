@@ -4,6 +4,7 @@ import { join } from 'path';
 import type { Message } from '../../models/message.js';
 import type { ToolCall } from '../../models/tool-call.js';
 import type { ToolResult } from '../../models/tool-result.js';
+import { getNamespacedPath } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
 
@@ -24,7 +25,7 @@ export async function commitMessage(
   message: Omit<Message, 'sequenceNumber' | 'commitHash'>,
   branch?: string
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Checkout the branch if specified
   const originalBranch = await git.currentBranch({ fs, dir });
@@ -127,7 +128,7 @@ export async function commitToolCall(
   conversationId: string,
   toolCall: Omit<ToolCall, 'sequenceNumber' | 'commitHash'>
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get next sequence number
   const sequenceNumber = await getNextSequenceNumber(dir);
@@ -174,7 +175,7 @@ export async function commitToolResult(
   conversationId: string,
   toolResult: Omit<ToolResult, 'sequenceNumber' | 'commitHash'>
 ): Promise<CommitMessageResult> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get next sequence number
   const sequenceNumber = await getNextSequenceNumber(dir);
@@ -223,17 +224,93 @@ export async function getConversationItems(
   conversationId: string,
   branch?: string
 ): Promise<ConversationItem[]> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
-  // Get current branch so we can restore it
-  const originalBranch = await git.currentBranch({ fs, dir });
+  try {
+    // Use current branch if not specified
+    const targetBranch = branch || await git.currentBranch({ fs, dir }) || 'main';
+    console.log(`[getConversationItems] Reading from branch: ${targetBranch} (requested: ${branch || 'default'})`);
 
-  // Checkout branch if specified
-  if (branch && branch !== originalBranch) {
-    await git.checkout({ fs, dir, ref: branch });
+    // Get commit OID for the target branch
+    const commitOid = await git.resolveRef({ fs, dir, ref: targetBranch });
+    console.log(`[getConversationItems] Resolved branch ${targetBranch} to commit: ${commitOid}`);
+
+    // Read tree from the commit
+    const commitObject = await git.readCommit({ fs, dir, oid: commitOid });
+    console.log(`[getConversationItems] Commit object:`, commitObject);
+    const treeOid = commitObject.commit.tree;
+
+    if (!treeOid) {
+      throw new Error(`Commit ${commitOid} has no tree`);
+    }
+
+    const tree = await git.readTree({ fs, dir, oid: treeOid });
+
+    // Filter files by type
+    const messageFiles = tree.tree
+      .filter((entry) => /^\d{4}-(user|assistant|system|tool)\.md$/.test(entry.path))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    const toolCallFiles = tree.tree
+      .filter((entry) => /^\d{4}-tool_call\.md$/.test(entry.path))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    const toolResultFiles = tree.tree
+      .filter((entry) => /^\d{4}-tool_result\.md$/.test(entry.path))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    const items: ConversationItem[] = [];
+
+    // Parse messages from blobs
+    for (const entry of messageFiles) {
+      const { blob } = await git.readBlob({ fs, dir, oid: entry.oid });
+      const content = new TextDecoder().decode(blob);
+      const message = parseMessageFile(content, entry.path);
+      if (message) {
+        items.push({ ...message, itemType: 'message' });
+      }
+    }
+
+    // Parse tool calls from blobs
+    for (const entry of toolCallFiles) {
+      const { blob } = await git.readBlob({ fs, dir, oid: entry.oid });
+      const content = new TextDecoder().decode(blob);
+      const toolCall = parseToolCallFile(content, entry.path);
+      if (toolCall) {
+        items.push({ ...toolCall, itemType: 'tool_call' });
+      }
+    }
+
+    // Parse tool results from blobs
+    for (const entry of toolResultFiles) {
+      const { blob } = await git.readBlob({ fs, dir, oid: entry.oid });
+      const content = new TextDecoder().decode(blob);
+      const toolResult = parseToolResultFile(content, entry.path);
+      if (toolResult) {
+        items.push({ ...toolResult, itemType: 'tool_result' });
+      }
+    }
+
+    // Sort all items by sequence number
+    items.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+
+    console.log(`[getConversationItems] Successfully read ${items.length} items from branch ${targetBranch} via blobs`);
+    return items;
+  } catch (error) {
+    // If blob reading fails (e.g., branch doesn't exist yet, no commits),
+    // fall back to reading from working directory
+    console.warn(`[getConversationItems] Blob reading failed for ${conversationId} on branch ${branch}, falling back to working directory:`, error);
+    return getConversationItemsFromWorkingDirectory(conversationId);
   }
+}
 
-  // Read all files
+// Fallback: Read from working directory (original approach)
+async function getConversationItemsFromWorkingDirectory(
+  conversationId: string
+): Promise<ConversationItem[]> {
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
+
+  // Read all files from working directory
   const files = await fs.promises.readdir(dir);
 
   // Separate different file types
@@ -249,7 +326,6 @@ export async function getConversationItems(
     .filter((f: string) => /^\d{4}-tool_result\.md$/.test(f))
     .sort();
 
-  // Parse all items and collect them with their sequence numbers
   const items: ConversationItem[] = [];
 
   // Parse messages
@@ -261,7 +337,7 @@ export async function getConversationItems(
     }
   }
 
-  // Parse tool calls as separate items
+  // Parse tool calls
   for (const file of toolCallFiles) {
     const content = await fs.promises.readFile(join(dir, file), 'utf-8');
     const toolCall = parseToolCallFile(content, file);
@@ -270,7 +346,7 @@ export async function getConversationItems(
     }
   }
 
-  // Parse tool results as separate items
+  // Parse tool results
   for (const file of toolResultFiles) {
     const content = await fs.promises.readFile(join(dir, file), 'utf-8');
     const toolResult = parseToolResultFile(content, file);
@@ -281,11 +357,6 @@ export async function getConversationItems(
 
   // Sort all items by sequence number
   items.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-
-  // Restore original branch
-  if (branch && branch !== originalBranch && originalBranch) {
-    await git.checkout({ fs, dir, ref: originalBranch });
-  }
 
   return items;
 }

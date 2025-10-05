@@ -1,4 +1,5 @@
 import { join } from 'path';
+import { getNamespacedPath } from './namespace.js';
 
 export interface FileMetadata {
   filename: string;
@@ -15,7 +16,7 @@ export async function getFiles(conversationId: string): Promise<FileMetadata[]> 
   const crypto = await import('crypto');
   
   const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
-  const filesDir = join(CONVERSATIONS_DIR, conversationId, 'files');
+  const filesDir = join(getNamespacedPath(CONVERSATIONS_DIR, conversationId), 'files');
 
   // Check if files directory exists
   if (!fs.existsSync(filesDir)) {

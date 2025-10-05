@@ -3,7 +3,6 @@ export interface Conversation {
   organizationId: string;
   ownerId: string;
   createdAt: Date;
-  mainBranch: string;
   branches: string[];
 }
 
@@ -17,7 +16,6 @@ export function validateConversation(conv: unknown): conv is Conversation {
     c.organizationId.length > 0 &&
     typeof c.ownerId === 'string' &&
     c.createdAt instanceof Date &&
-    typeof c.mainBranch === 'string' &&
     Array.isArray(c.branches)
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useApi } from '../context/ApiContext';
 import { ApiClient } from '../services/ApiClient';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import { cn } from '@/lib/utils';
 
 interface ConversationListProps {
   selectedId: string | null;
-  onSelect: (id: string) => void;
   onConversationCreated?: () => void;
 }
 
@@ -27,7 +27,8 @@ interface Conversation {
 }
 
 const ConversationListComponent = forwardRef<{ refresh: () => void }, ConversationListProps>(
-  ({ selectedId, onSelect, onConversationCreated }, ref) => {
+  ({ selectedId, onConversationCreated }, ref) => {
+  const navigate = useNavigate();
   const { config } = useApi();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,8 +65,10 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
   }));
 
   const handleNewConversation = async () => {
-    const newId = `conv-${Date.now()}`;
-    onSelect(newId);
+    const newId = `${Date.now()}`;
+    // Navigate to the new conversation using full namespaced ID
+    const fullId = `default/${newId}`;
+    navigate({ to: `/user/${fullId}` });
     // Reload conversations after a brief delay to allow backend to create it
     setTimeout(() => {
       loadConversations();
@@ -84,9 +87,9 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
       const client = new ApiClient(config.baseUrl, config.apiKey, config.requestProtocol, config.responseProtocol, config.streaming);
       await client.deleteConversation(deleteConfirm.id);
 
-      // If deleted conversation was selected, clear selection
+      // If deleted conversation was selected, go to user index
       if (selectedId === deleteConfirm.id) {
-        onSelect(null as any);
+        navigate({ to: '/user' });
       }
 
       // Reload conversation list
@@ -129,7 +132,7 @@ const ConversationListComponent = forwardRef<{ refresh: () => void }, Conversati
                 "flex-1 justify-start h-auto py-2 px-3",
                 selectedId === conv.id && "bg-secondary"
               )}
-              onClick={() => onSelect(conv.id)}
+              onClick={() => navigate({ to: `/user/${conv.id}` })}
             >
               <div className="flex flex-col items-start w-full">
                 <div className="font-medium text-sm truncate w-full text-left">{conv.title}</div>

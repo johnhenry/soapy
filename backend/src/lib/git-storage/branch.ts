@@ -2,8 +2,26 @@ import git from 'isomorphic-git';
 import fs from 'fs';
 import { join } from 'path';
 import type { Branch } from '../../models/branch.js';
+import { getNamespacedPath } from './namespace.js';
 
 const CONVERSATIONS_DIR = process.env.CONVERSATIONS_DIR || './conversations';
+
+/**
+ * Get the currently checked-out branch name from Git HEAD.
+ * This is the source of truth for which branch is "default".
+ */
+export async function getCurrentBranch(conversationId: string): Promise<string> {
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
+
+  try {
+    const branch = await git.currentBranch({ fs, dir, fullname: false });
+    // currentBranch returns null for detached HEAD or empty repos
+    return branch || 'main';
+  } catch {
+    // If the repo doesn't exist or has no commits yet, default to 'main'
+    return 'main';
+  }
+}
 
 export async function createBranch(
   conversationId: string,
@@ -11,7 +29,7 @@ export async function createBranch(
   fromMessageNumber: number,
   creatorId: string
 ): Promise<{ branchRef: string; createdAt: Date }> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Get all commits in reverse chronological order from current branch
   // This allows branching from any branch, not just main
@@ -113,7 +131,7 @@ export async function createBranch(
 }
 
 export async function getBranches(conversationId: string): Promise<Branch[]> {
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
   const branchesPath = join(dir, '.soapy-branches.json');
 
   try {
@@ -132,11 +150,13 @@ export async function deleteBranch(
   conversationId: string,
   branchName: string
 ): Promise<void> {
-  if (branchName === 'main') {
-    throw new Error('Cannot delete main branch');
+  // Prevent deleting the currently checked-out branch
+  const currentBranch = await getCurrentBranch(conversationId);
+  if (branchName === currentBranch) {
+    throw new Error(`Cannot delete currently checked-out branch: ${branchName}`);
   }
 
-  const dir = join(CONVERSATIONS_DIR, conversationId);
+  const dir = getNamespacedPath(CONVERSATIONS_DIR, conversationId);
 
   // Delete the Git branch (needs full ref path)
   await git.deleteBranch({ fs, dir, ref: `refs/heads/${branchName}` });

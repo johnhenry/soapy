@@ -56,14 +56,14 @@ export class RestClient {
   }
 
   async getMessages(id: string, format: OutputFormat = 'openai', branch?: string): Promise<Message[]> {
-    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
+    const branchParam = branch ? `&branch=${branch}` : '';
     const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}`);
     const data = await response.json();
     return data.messages || [];
   }
 
   async getConversationItems(id: string, format: OutputFormat = 'openai', branch?: string): Promise<ConversationItem[]> {
-    const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : '';
+    const branchParam = branch ? `&branch=${branch}` : '';
     const response = await this.fetch(`/v1/chat/${id}?format=${format}${branchParam}&includeTools=true`);
     const data = await response.json();
     return data.items || [];
@@ -284,7 +284,7 @@ export class RestClient {
   }
 
   async deleteBranch(id: string, branchName: string): Promise<void> {
-    await this.fetch(`/v1/chat/${id}/branch/${encodeURIComponent(branchName)}`, {
+    await this.fetch(`/v1/chat/${id}/branch/${branchName}`, {
       method: 'DELETE',
     });
   }
